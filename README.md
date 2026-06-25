@@ -8,3 +8,4 @@ A React Native app built with Expo and Expo Router.
 npm install
 npm run dev
 ```
+# sachi
