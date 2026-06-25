@@ -1,0 +1,318 @@
+import React from 'react';
+import {
+  View, Text, Image, ScrollView, TouchableOpacity, StyleSheet,
+  SafeAreaView, Platform, useWindowDimensions,
+} from 'react-native';
+import { useLocalSearchParams, useRouter } from 'expo-router';
+import {
+  ChevronLeft, Heart, MapPin, BedDouble, Bath, ShieldCheck,
+  Phone, MessageCircle, Calendar, Calculator,
+} from 'lucide-react-native';
+import { useApp } from '@/context/AppContext';
+
+const DESKTOP_BREAKPOINT = 900;
+
+const COLORS = {
+  primary: '#1B6B3A',
+  primaryLight: '#E8F5E9',
+  secondary: '#F5A623',
+  text: '#1A1A2E',
+  textSecondary: '#6B7280',
+  border: '#E5E7EB',
+  bg: '#F8F9FA',
+  surface: '#FFFFFF',
+};
+
+function formatRent(amount: number) {
+  if (amount >= 1000000) return `TZS ${(amount / 1000000).toFixed(1)}M`;
+  return `TZS ${(amount / 1000).toFixed(0)}K`;
+}
+
+function formatFull(amount: number) {
+  return `TZS ${amount.toLocaleString('en-US')}`;
+}
+
+export default function PropertyDetailScreen() {
+  const { id } = useLocalSearchParams<{ id: string }>();
+  const router = useRouter();
+  const { savedProperties, toggleSave, requestLogin, properties } = useApp();
+  const { width } = useWindowDimensions();
+  const isDesktop = Platform.OS === 'web' && width >= DESKTOP_BREAKPOINT;
+
+  const property = properties.find(p => p.id === id);
+
+  if (!property) {
+    return (
+      <SafeAreaView style={styles.safe}>
+        <View style={styles.notFound}>
+          <Text style={styles.notFoundText}>Property not found</Text>
+          <TouchableOpacity onPress={() => router.back()} style={styles.backLink}>
+            <Text style={styles.backLinkText}>Go back</Text>
+          </TouchableOpacity>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
+  const isSaved = savedProperties.has(property.id);
+
+  const handleContactOwner = () => {
+    requestLogin(`Sign in to contact ${property.ownerName}`);
+  };
+
+  const handleRequestViewing = () => {
+    requestLogin('Sign in to request a property viewing');
+  };
+
+  const costCardEl = (
+    <View style={styles.costCard}>
+      <View style={styles.costCardHeader}>
+        <Calculator size={16} color={COLORS.primary} strokeWidth={2} />
+        <Text style={styles.costCardTitle}>True Cost Calculator</Text>
+      </View>
+      <View style={styles.costRow}>
+        <Text style={styles.costLabel}>Monthly rent</Text>
+        <Text style={styles.costValue}>{formatFull(property.monthlyRent)}</Text>
+      </View>
+      <View style={styles.costRow}>
+        <Text style={styles.costLabel}>Deposit</Text>
+        <Text style={styles.costValue}>{formatFull(property.depositAmount)}</Text>
+      </View>
+      <View style={styles.costRow}>
+        <Text style={styles.costLabel}>Estimated utilities</Text>
+        <Text style={styles.costValue}>{formatFull(property.estimatedUtilities)}/mo</Text>
+      </View>
+      <View style={styles.costDivider} />
+      <View style={styles.costRow}>
+        <Text style={styles.costTotalLabel}>Total move-in cost</Text>
+        <Text style={styles.costTotalValue}>
+          {formatFull(property.depositAmount + property.monthlyRent)}
+        </Text>
+      </View>
+      <Text style={styles.costNote}>Deposit + first month's rent</Text>
+    </View>
+  );
+
+  const actionButtons = (
+    <>
+      <TouchableOpacity
+        style={[styles.secondaryAction, isDesktop && styles.actionBtnDesktop]}
+        onPress={handleRequestViewing}
+        activeOpacity={0.85}
+      >
+        <Calendar size={18} color={COLORS.primary} strokeWidth={2} />
+        <Text style={styles.secondaryActionText}>Request Viewing</Text>
+      </TouchableOpacity>
+      <TouchableOpacity
+        style={[styles.primaryAction, isDesktop && styles.actionBtnDesktop]}
+        onPress={handleContactOwner}
+        activeOpacity={0.85}
+      >
+        <MessageCircle size={18} color="#FFFFFF" strokeWidth={2} />
+        <Text style={styles.primaryActionText}>Contact Owner</Text>
+      </TouchableOpacity>
+    </>
+  );
+
+  const detailsBlock = (
+    <>
+      <View style={styles.locationRow}>
+        <MapPin size={14} color={COLORS.textSecondary} strokeWidth={2} />
+        <Text style={styles.locationText}>{property.neighbourhood}, {property.city}</Text>
+      </View>
+
+      <Text style={styles.title}>{property.title}</Text>
+
+      <View style={styles.priceRow}>
+        <Text style={styles.price}>{formatRent(property.monthlyRent)}</Text>
+        <Text style={styles.priceUnit}>/month</Text>
+      </View>
+
+      <View style={styles.detailsRow}>
+        <View style={styles.detailItem}>
+          <BedDouble size={16} color={COLORS.primary} strokeWidth={2} />
+          <Text style={styles.detailText}>{property.bedrooms} bed</Text>
+        </View>
+        <View style={styles.detailItem}>
+          <Bath size={16} color={COLORS.primary} strokeWidth={2} />
+          <Text style={styles.detailText}>{property.bathrooms} bath</Text>
+        </View>
+        {property.verifiedPhone && (
+          <View style={styles.detailItem}>
+            <ShieldCheck size={16} color={COLORS.primary} strokeWidth={2} />
+            <Text style={styles.detailText}>Verified</Text>
+          </View>
+        )}
+      </View>
+
+      {!isDesktop && costCardEl}
+
+      <Text style={styles.sectionTitle}>Description</Text>
+      <Text style={styles.description}>{property.description}</Text>
+
+      <Text style={styles.sectionTitle}>Amenities</Text>
+      <View style={styles.amenitiesGrid}>
+        {property.amenities.map(a => (
+          <View key={a} style={styles.amenityChip}>
+            <Text style={styles.amenityText}>{a}</Text>
+          </View>
+        ))}
+      </View>
+
+      <Text style={styles.sectionTitle}>Listed by</Text>
+      <View style={styles.ownerRow}>
+        <Image source={{ uri: property.ownerAvatar }} style={styles.ownerAvatar} />
+        <View style={styles.ownerInfo}>
+          <Text style={styles.ownerName}>{property.ownerName}</Text>
+          <Text style={styles.ownerRating}>★ {property.ownerRating.toFixed(1)} rating</Text>
+        </View>
+      </View>
+    </>
+  );
+
+  const imageEl = (
+    <View style={[styles.imageWrap, isDesktop && styles.imageWrapDesktop]}>
+      <Image source={{ uri: property.images[0] }} style={styles.image} resizeMode="cover" />
+      <TouchableOpacity style={styles.backBtn} onPress={() => router.back()}>
+        <ChevronLeft size={22} color="#FFFFFF" strokeWidth={2.5} />
+      </TouchableOpacity>
+      <TouchableOpacity style={styles.heartBtn} onPress={() => toggleSave(property.id)}>
+        <Heart
+          size={20}
+          color={isSaved ? '#EF4444' : '#FFFFFF'}
+          fill={isSaved ? '#EF4444' : 'transparent'}
+          strokeWidth={2}
+        />
+      </TouchableOpacity>
+    </View>
+  );
+
+  return (
+    <SafeAreaView style={styles.safe}>
+      <ScrollView
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={[styles.scrollContent, isDesktop && styles.scrollContentDesktop]}
+      >
+        {isDesktop ? (
+          <View style={styles.twoCol}>
+            <View style={styles.leftCol}>
+              {imageEl}
+              <View style={[styles.content, styles.contentDesktop]}>
+                {detailsBlock}
+              </View>
+            </View>
+            <View style={styles.rightCol}>
+              {costCardEl}
+              <View style={styles.actionsCol}>
+                {actionButtons}
+              </View>
+            </View>
+          </View>
+        ) : (
+          <>
+            {imageEl}
+            <View style={styles.content}>
+              {detailsBlock}
+            </View>
+          </>
+        )}
+      </ScrollView>
+
+      {!isDesktop && (
+        <View style={styles.actionBar}>
+          {actionButtons}
+        </View>
+      )}
+    </SafeAreaView>
+  );
+}
+
+const styles = StyleSheet.create({
+  safe: { flex: 1, backgroundColor: COLORS.bg },
+  scrollContent: { paddingBottom: 24 },
+  scrollContentDesktop: {
+    width: '100%',
+    maxWidth: 1040,
+    alignSelf: 'center',
+    paddingHorizontal: 24,
+    paddingTop: 20,
+    paddingBottom: 40,
+  },
+  twoCol: { flexDirection: 'row', gap: 24, alignItems: 'flex-start' },
+  leftCol: { flex: 1, minWidth: 0 },
+  rightCol: { width: 340, gap: 16 },
+  contentDesktop: { paddingHorizontal: 0, paddingTop: 16 },
+  actionsCol: { gap: 10 },
+  actionBtnDesktop: { flex: 0, alignSelf: 'stretch' },
+  imageWrap: { width: '100%', height: 320, position: 'relative' },
+  imageWrapDesktop: { height: 400, borderRadius: 18, overflow: 'hidden' },
+  image: { width: '100%', height: '100%' },
+  backBtn: {
+    position: 'absolute', top: Platform.OS === 'ios' ? 50 : 16, left: 16,
+    width: 40, height: 40, borderRadius: 20, backgroundColor: 'rgba(0,0,0,0.4)',
+    alignItems: 'center', justifyContent: 'center',
+  },
+  heartBtn: {
+    position: 'absolute', top: Platform.OS === 'ios' ? 50 : 16, right: 16,
+    width: 40, height: 40, borderRadius: 20, backgroundColor: 'rgba(0,0,0,0.4)',
+    alignItems: 'center', justifyContent: 'center',
+  },
+  content: { padding: 20, gap: 4 },
+  locationRow: { flexDirection: 'row', alignItems: 'center', gap: 4, marginBottom: 6 },
+  locationText: { fontSize: 13, color: COLORS.textSecondary, fontWeight: '500' },
+  title: { fontSize: 22, fontWeight: '800', color: COLORS.text, lineHeight: 28, marginBottom: 8 },
+  priceRow: { flexDirection: 'row', alignItems: 'baseline', gap: 4, marginBottom: 16 },
+  price: { fontSize: 26, fontWeight: '800', color: COLORS.primary, letterSpacing: -0.3 },
+  priceUnit: { fontSize: 14, color: COLORS.textSecondary, fontWeight: '500' },
+  detailsRow: { flexDirection: 'row', gap: 20, marginBottom: 20 },
+  detailItem: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  detailText: { fontSize: 14, color: COLORS.text, fontWeight: '600' },
+  costCard: {
+    backgroundColor: COLORS.primaryLight,
+    borderRadius: 16,
+    padding: 16,
+    marginTop: 16,
+    gap: 10,
+  },
+  costCardHeader: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 2 },
+  costCardTitle: { fontSize: 14, fontWeight: '700', color: COLORS.primary },
+  costRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  costLabel: { fontSize: 13, color: COLORS.textSecondary },
+  costValue: { fontSize: 13, fontWeight: '600', color: COLORS.text },
+  costDivider: { height: 1, backgroundColor: COLORS.border, marginVertical: 2 },
+  costTotalLabel: { fontSize: 14, fontWeight: '700', color: COLORS.text },
+  costTotalValue: { fontSize: 16, fontWeight: '800', color: COLORS.primary },
+  costNote: { fontSize: 11, color: COLORS.textSecondary, marginTop: -4 },
+  sectionTitle: { fontSize: 16, fontWeight: '700', color: COLORS.text, marginTop: 16, marginBottom: 8 },
+  description: { fontSize: 14, color: COLORS.textSecondary, lineHeight: 21 },
+  amenitiesGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  amenityChip: {
+    paddingHorizontal: 12, paddingVertical: 7, borderRadius: 16,
+    backgroundColor: COLORS.primaryLight,
+  },
+  amenityText: { fontSize: 12, fontWeight: '600', color: COLORS.primary },
+  ownerRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  ownerAvatar: { width: 48, height: 48, borderRadius: 24 },
+  ownerInfo: { gap: 2 },
+  ownerName: { fontSize: 15, fontWeight: '700', color: COLORS.text },
+  ownerRating: { fontSize: 13, color: COLORS.secondary, fontWeight: '600' },
+  actionBar: {
+    flexDirection: 'row', gap: 10, padding: 16,
+    paddingBottom: Platform.OS === 'ios' ? 28 : 16,
+    backgroundColor: COLORS.surface, borderTopWidth: 1, borderTopColor: COLORS.border,
+  },
+  secondaryAction: {
+    flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
+    borderWidth: 1.5, borderColor: COLORS.primary, borderRadius: 14, paddingVertical: 14,
+  },
+  secondaryActionText: { fontSize: 14, fontWeight: '700', color: COLORS.primary },
+  primaryAction: {
+    flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
+    backgroundColor: COLORS.primary, borderRadius: 14, paddingVertical: 14,
+  },
+  primaryActionText: { fontSize: 14, fontWeight: '700', color: '#FFFFFF' },
+  notFound: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 12 },
+  notFoundText: { fontSize: 16, color: COLORS.textSecondary },
+  backLink: { paddingVertical: 8, paddingHorizontal: 16 },
+  backLinkText: { fontSize: 15, fontWeight: '700', color: COLORS.primary },
+});

@@ -1,0 +1,58 @@
+# Supabase local development config. Docs: https://supabase.com/docs/guides/cli/config
+project_id = "sachi"
+
+[api]
+enabled = true
+port = 54321
+schemas = ["public", "storage", "graphql_public"]
+extra_search_path = ["public", "extensions"]
+max_rows = 1000
+
+[db]
+port = 54322
+shadow_port = 54320
+major_version = 15
+
+[studio]
+enabled = true
+port = 54323
+
+[inbucket]
+enabled = true
+port = 54324
+
+[storage]
+enabled = true
+file_size_limit = "50MiB"
+
+[auth]
+enabled = true
+site_url = "http://localhost:8081"
+additional_redirect_urls = ["http://localhost:8081", "myapp://"]
+jwt_expiry = 3600
+enable_refresh_token_rotation = true
+enable_signup = true
+
+[auth.email]
+enable_signup = true
+enable_confirmations = false
+
+# Phone (OTP) sign-in. Configure a real SMS provider in production.
+[auth.sms]
+enable_signup = true
+enable_confirmations = false
+
+# Google OAuth — set the secrets via env vars before `supabase start`.
+[auth.external.google]
+enabled = false
+client_id = "env(SUPABASE_AUTH_GOOGLE_CLIENT_ID)"
+secret = "env(SUPABASE_AUTH_GOOGLE_SECRET)"
+
+# Edge functions ----------------------------------------------------------------
+# Public: a renter can submit an inquiry without being signed in.
+[functions.submit-inquiry]
+verify_jwt = false
+
+# Authenticated: dashboard KPIs require a valid user JWT.
+[functions.dashboard-stats]
+verify_jwt = true
