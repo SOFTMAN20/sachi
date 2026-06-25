@@ -2,6 +2,7 @@ import React, { useState, useMemo } from 'react';
 import {
   View, Text, ScrollView, TouchableOpacity, StyleSheet,
   TextInput, Platform, Modal, Pressable, useWindowDimensions,
+  SafeAreaView,
 } from 'react-native';
 import { Search, MapPin, Hop as HomeIcon, Wallet, ChevronUp, X } from 'lucide-react-native';
 import { NEIGHBOURHOODS } from '@/data/mockData';
@@ -43,7 +44,6 @@ export default function ExploreScreen() {
   const { properties } = useApp();
   const { width } = useWindowDimensions();
   const isDesktop = Platform.OS === 'web' && width >= DESKTOP_BREAKPOINT;
-  // On native iOS, contentInsetAdjustmentBehavior handles tab bar insets automatically.
   const listBottomPad = Platform.OS === 'web' ? 120 : 0;
   const [search, setSearch] = useState('');
   const [selectedNeighbourhood, setSelectedNeighbourhood] = useState('All Areas');
@@ -93,74 +93,78 @@ export default function ExploreScreen() {
     );
 
   return (
-    <ScrollView
-      style={styles.scroll}
-      contentContainerStyle={[{ paddingBottom: listBottomPad }]}
-      showsVerticalScrollIndicator={false}
-      contentInsetAdjustmentBehavior="automatic"
-    >
-      <View style={[styles.header, isDesktop && styles.blockDesktop]}>
-        <Text style={styles.headerTitle}>Explore</Text>
-        <Text style={styles.headerSub}>Find properties across Tanzania</Text>
+    <SafeAreaView style={styles.safe}>
+      <View style={styles.container}>
+        <ScrollView
+          style={styles.scroll}
+          contentContainerStyle={[styles.content, { paddingBottom: listBottomPad }]}
+          showsVerticalScrollIndicator={false}
+          contentInsetAdjustmentBehavior="automatic"
+        >
+          <View style={[styles.header, isDesktop && styles.blockDesktop]}>
+            <Text style={styles.headerTitle}>Explore</Text>
+            <Text style={styles.headerSub}>Find properties across Tanzania</Text>
+          </View>
+
+          <View style={[styles.searchRow, isDesktop && styles.blockDesktop]}>
+            <View style={styles.searchBar}>
+              <Search size={16} color={COLORS.textSecondary} strokeWidth={2} />
+              <TextInput
+                style={styles.searchInput}
+                placeholder="Search area or property..."
+                placeholderTextColor={COLORS.textSecondary}
+                value={search}
+                onChangeText={setSearch}
+              />
+            </View>
+          </View>
+
+          <View style={[styles.resultsSection, isDesktop && styles.resultsSectionDesktop]}>
+            <View style={styles.resultsMeta}>
+              <Text style={styles.resultsCount}>{filtered.length} properties found</Text>
+              {filtersActive && (
+                <TouchableOpacity onPress={clearFilters}>
+                  <Text style={styles.clearFilters}>Clear filters</Text>
+                </TouchableOpacity>
+              )}
+            </View>
+
+            {filtered.length === 0 ? (
+              <View style={styles.empty}>
+                <Text style={styles.emptyEmoji}>🏘️</Text>
+                <Text style={styles.emptyTitle}>Hakuna mali</Text>
+                <Text style={styles.emptySub}>No properties match your filters</Text>
+              </View>
+            ) : (
+              renderCardList(filtered)
+            )}
+          </View>
+        </ScrollView>
+
+        {/* Bolt-style bottom dock */}
+        <TouchableOpacity style={[styles.dock, isDesktop && styles.dockDesktop]} onPress={() => setShowFilters(true)} activeOpacity={0.9}>
+          <View style={styles.dockHandleRow}>
+            <View style={styles.dockHandle} />
+          </View>
+          <View style={styles.dockRow}>
+            <View style={styles.dockField}>
+              <HomeIcon size={15} color={COLORS.primary} strokeWidth={2} />
+              <Text style={styles.dockFieldLabel} numberOfLines={1}>{typeLabel}</Text>
+            </View>
+            <View style={styles.dockDivider} />
+            <View style={styles.dockField}>
+              <MapPin size={15} color={COLORS.primary} strokeWidth={2} />
+              <Text style={styles.dockFieldLabel} numberOfLines={1}>{selectedNeighbourhood}</Text>
+            </View>
+            <View style={styles.dockDivider} />
+            <View style={styles.dockField}>
+              <Wallet size={15} color={COLORS.primary} strokeWidth={2} />
+              <Text style={styles.dockFieldLabel} numberOfLines={1}>{priceLabel}</Text>
+            </View>
+            <ChevronUp size={18} color={COLORS.textSecondary} strokeWidth={2.5} />
+          </View>
+        </TouchableOpacity>
       </View>
-
-      <View style={[styles.searchRow, isDesktop && styles.blockDesktop]}>
-        <View style={styles.searchBar}>
-          <Search size={16} color={COLORS.textSecondary} strokeWidth={2} />
-          <TextInput
-            style={styles.searchInput}
-            placeholder="Search area or property..."
-            placeholderTextColor={COLORS.textSecondary}
-            value={search}
-            onChangeText={setSearch}
-          />
-        </View>
-      </View>
-
-      <ScrollView style={styles.scroll} contentContainerStyle={[styles.resultsSection, isDesktop && styles.resultsSectionDesktop, { paddingBottom: listBottomPad }]} showsVerticalScrollIndicator={false}>
-        <View style={styles.resultsMeta}>
-          <Text style={styles.resultsCount}>{filtered.length} properties found</Text>
-          {filtersActive && (
-            <TouchableOpacity onPress={clearFilters}>
-              <Text style={styles.clearFilters}>Clear filters</Text>
-            </TouchableOpacity>
-          )}
-        </View>
-
-        {filtered.length === 0 ? (
-          <View style={styles.empty}>
-            <Text style={styles.emptyEmoji}>🏘️</Text>
-            <Text style={styles.emptyTitle}>Hakuna mali</Text>
-            <Text style={styles.emptySub}>No properties match your filters</Text>
-          </View>
-        ) : (
-          renderCardList(filtered)
-        )}
-      </ScrollView>
-
-      {/* Bolt-style bottom dock */}
-      <TouchableOpacity style={[styles.dock, isDesktop && styles.dockDesktop]} onPress={() => setShowFilters(true)} activeOpacity={0.9}>
-        <View style={styles.dockHandleRow}>
-          <View style={styles.dockHandle} />
-        </View>
-        <View style={styles.dockRow}>
-          <View style={styles.dockField}>
-            <HomeIcon size={15} color={COLORS.primary} strokeWidth={2} />
-            <Text style={styles.dockFieldLabel} numberOfLines={1}>{typeLabel}</Text>
-          </View>
-          <View style={styles.dockDivider} />
-          <View style={styles.dockField}>
-            <MapPin size={15} color={COLORS.primary} strokeWidth={2} />
-            <Text style={styles.dockFieldLabel} numberOfLines={1}>{selectedNeighbourhood}</Text>
-          </View>
-          <View style={styles.dockDivider} />
-          <View style={styles.dockField}>
-            <Wallet size={15} color={COLORS.primary} strokeWidth={2} />
-            <Text style={styles.dockFieldLabel} numberOfLines={1}>{priceLabel}</Text>
-          </View>
-          <ChevronUp size={18} color={COLORS.textSecondary} strokeWidth={2.5} />
-        </View>
-      </TouchableOpacity>
 
       <Modal
         visible={showFilters}
@@ -241,7 +245,7 @@ export default function ExploreScreen() {
           </Pressable>
         </Pressable>
       </Modal>
-    </ScrollView>
+    </SafeAreaView>
   );
 }
 
@@ -250,15 +254,93 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: COLORS.bg,
   },
-  blockDesktop: {
-    width: '100%',
-    maxWidth: 1180,
-    alignSelf: 'center',
+  container: {
+    flex: 1,
+  },
+  scroll: {
+    flex: 1,
+  },
+  content: {
+    paddingBottom: 24,
+  },
+  header: {
+    paddingHorizontal: 20,
+    paddingTop: Platform.OS === 'android' ? 48 : 16,
+    paddingBottom: 8,
+  },
+  headerTitle: {
+    fontSize: 28,
+    fontWeight: '800',
+    color: COLORS.text,
+    letterSpacing: -0.5,
+  },
+  headerSub: {
+    fontSize: 14,
+    color: COLORS.textSecondary,
+    marginTop: 4,
+  },
+  searchRow: {
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+  },
+  searchBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: COLORS.surface,
+    borderRadius: 12,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+  },
+  searchInput: {
+    flex: 1,
+    marginLeft: 10,
+    fontSize: 15,
+    color: COLORS.text,
+  },
+  resultsSection: {
+    paddingHorizontal: 20,
+    paddingTop: 8,
   },
   resultsSectionDesktop: {
     width: '100%',
     maxWidth: 1180,
     alignSelf: 'center',
+  },
+  resultsMeta: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  resultsCount: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: COLORS.textSecondary,
+  },
+  clearFilters: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: COLORS.primary,
+  },
+  empty: {
+    alignItems: 'center',
+    paddingVertical: 60,
+  },
+  emptyEmoji: {
+    fontSize: 48,
+    marginBottom: 12,
+  },
+  emptyTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: COLORS.text,
+  },
+  emptySub: {
+    fontSize: 14,
+    color: COLORS.textSecondary,
+    marginTop: 4,
   },
   grid: {
     flexDirection: 'row',
@@ -268,175 +350,97 @@ const styles = StyleSheet.create({
   gridItem: {
     width: '31.5%',
   },
-  dockDesktop: {
-    width: 680,
-    left: '50%',
-    right: 'auto',
-    marginLeft: -340,
+  blockDesktop: {
+    width: '100%',
+    maxWidth: 1180,
+    alignSelf: 'center',
   },
-  header: {
-    paddingHorizontal: 20,
-    paddingTop: Platform.OS === 'android' ? 48 : 16,
-    paddingBottom: 12,
-    backgroundColor: COLORS.bg,
-  },
-  headerTitle: {
-    fontSize: 26,
-    fontWeight: '800',
-    color: COLORS.text,
-    letterSpacing: -0.5,
-  },
-  headerSub: {
-    fontSize: 14,
-    color: COLORS.textSecondary,
-    marginTop: 2,
-  },
-  searchRow: {
-    paddingHorizontal: 20,
-    paddingBottom: 12,
-    backgroundColor: COLORS.bg,
-  },
-  searchBar: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-    backgroundColor: COLORS.surface,
-    borderRadius: 14,
-    paddingHorizontal: 14,
-    paddingVertical: 13,
-    borderWidth: 1,
-    borderColor: COLORS.border,
-  },
-  searchInput: {
-    flex: 1,
-    fontSize: 14,
-    color: COLORS.text,
-  },
-  scroll: {
-    flex: 1,
-  },
-  resultsSection: {
-    paddingHorizontal: 20,
-    paddingTop: 8,
-    paddingBottom: 120,
-  },
-  resultsMeta: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 16,
-  },
-  resultsCount: {
-    fontSize: 15,
-    fontWeight: '700',
-    color: COLORS.text,
-  },
-  clearFilters: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: COLORS.primary,
-  },
-  empty: {
-    alignItems: 'center',
-    paddingVertical: 48,
-    gap: 8,
-  },
-  emptyEmoji: {
-    fontSize: 40,
-    marginBottom: 4,
-  },
-  emptyTitle: {
-    fontSize: 17,
-    fontWeight: '700',
-    color: COLORS.text,
-  },
-  emptySub: {
-    fontSize: 14,
-    color: COLORS.textSecondary,
-  },
-
   // Bottom dock (Bolt-style)
   dock: {
     position: 'absolute',
-    left: 12,
-    right: 12,
-    bottom: Platform.OS === 'ios' ? 12 : 10,
+    left: 16,
+    right: 16,
+    bottom: Platform.OS === 'ios' ? 24 : 16,
     backgroundColor: COLORS.surface,
     borderRadius: 20,
-    paddingTop: 6,
-    paddingBottom: 12,
-    paddingHorizontal: 14,
+    paddingHorizontal: 16,
+    paddingTop: 10,
+    paddingBottom: 14,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.15,
-    shadowRadius: 14,
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.12,
+    shadowRadius: 24,
     elevation: 8,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+  },
+  dockDesktop: {
+    left: '50%',
+    right: undefined,
+    marginLeft: -220,
+    width: 440,
   },
   dockHandleRow: { alignItems: 'center', marginBottom: 6 },
   dockHandle: { width: 32, height: 4, borderRadius: 2, backgroundColor: COLORS.border },
   dockRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
+    justifyContent: 'space-between',
   },
   dockField: {
-    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
+    flex: 1,
   },
   dockFieldLabel: {
-    fontSize: 12,
-    fontWeight: '700',
+    fontSize: 13,
+    fontWeight: '600',
     color: COLORS.text,
-    flexShrink: 1,
   },
   dockDivider: {
     width: 1,
     height: 20,
     backgroundColor: COLORS.border,
+    marginHorizontal: 8,
   },
-
-  // Filter sheet modal
+  // Modal / Sheet
   overlay: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.5)',
+    backgroundColor: 'rgba(0,0,0,0.35)',
     justifyContent: 'flex-end',
   },
   overlayDesktop: {
     justifyContent: 'center',
     alignItems: 'center',
-    padding: 24,
   },
   sheet: {
     backgroundColor: COLORS.surface,
-    borderTopLeftRadius: 28,
-    borderTopRightRadius: 28,
-    paddingHorizontal: 24,
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    paddingHorizontal: 20,
     paddingTop: 12,
-    paddingBottom: Platform.OS === 'ios' ? 34 : 24,
-    maxHeight: '78%',
+    paddingBottom: Platform.OS === 'ios' ? 40 : 24,
+    maxHeight: '85%',
   },
   sheetDesktop: {
-    width: '100%',
-    maxWidth: 480,
-    borderRadius: 24,
-    paddingTop: 24,
+    width: 480,
+    borderRadius: 20,
+    maxHeight: '80%',
     paddingBottom: 24,
-    maxHeight: '85%',
   },
   sheetHandle: {
     width: 40,
     height: 4,
-    backgroundColor: COLORS.border,
     borderRadius: 2,
+    backgroundColor: COLORS.border,
     alignSelf: 'center',
     marginBottom: 12,
   },
   sheetHeader: {
     flexDirection: 'row',
-    alignItems: 'center',
     justifyContent: 'space-between',
+    alignItems: 'center',
     marginBottom: 16,
   },
   sheetTitle: {
@@ -445,15 +449,10 @@ const styles = StyleSheet.create({
     color: COLORS.text,
   },
   sheetCloseBtn: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: COLORS.bg,
-    alignItems: 'center',
-    justifyContent: 'center',
+    padding: 4,
   },
   sheetScroll: {
-    marginBottom: 8,
+    maxHeight: '60%',
   },
   filterLabelText: {
     fontSize: 13,
@@ -473,11 +472,11 @@ const styles = StyleSheet.create({
   },
   chip: {
     paddingHorizontal: 14,
-    paddingVertical: 8,
-    borderRadius: 20,
-    backgroundColor: COLORS.bg,
+    paddingVertical: 10,
+    borderRadius: 10,
     borderWidth: 1,
     borderColor: COLORS.border,
+    backgroundColor: COLORS.surface,
   },
   chipActive: {
     backgroundColor: COLORS.primary,
