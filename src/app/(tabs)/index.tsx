@@ -1,12 +1,11 @@
 import React, { useState, useMemo } from 'react';
 import {
   View, Text, ScrollView, TextInput, TouchableOpacity,
-  StyleSheet, SafeAreaView, FlatList, useWindowDimensions, Platform,
-  Modal, Pressable,
+  StyleSheet, FlatList, useWindowDimensions, Platform,
+  Modal, Pressable, SafeAreaView,
 } from 'react-native';
 import { Search, Bell, SlidersHorizontal, MapPin, TrendingUp, X, Wallet } from 'lucide-react-native';
 import { useRouter } from 'expo-router';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useApp } from '@/context/AppContext';
 import { NEIGHBOURHOODS } from '@/data/mockData';
 import PropertyCard from '@/components/PropertyCard';
@@ -46,9 +45,8 @@ export default function HomeScreen() {
   const { userRole, userName, isLoggedIn, properties } = useApp();
   const router = useRouter();
   const { width } = useWindowDimensions();
-  const insets = useSafeAreaInsets();
   const isDesktop = Platform.OS === 'web' && width >= DESKTOP_BREAKPOINT;
-  const listBottomPad = Platform.OS === 'web' ? 24 : insets.bottom + 100;
+  const listBottomPad = Platform.OS === 'web' ? 24 : 0;
   const [searchQuery, setSearchQuery] = useState('');
   const [activeFilter, setActiveFilter] = useState<PropertyType | 'all'>('all');
   const [whereQuery, setWhereQuery] = useState('');
@@ -116,12 +114,13 @@ export default function HomeScreen() {
 
   return (
     <SafeAreaView style={styles.safe}>
-      <ScrollView
-        style={styles.scroll}
-        contentContainerStyle={[styles.content, isDesktop && styles.contentDesktop, { paddingBottom: listBottomPad }]}
-        showsVerticalScrollIndicator={false}
-        stickyHeaderIndices={Platform.OS === 'web' ? [1] : undefined}
-      >
+    <ScrollView
+      style={styles.scroll}
+      contentContainerStyle={[styles.content, isDesktop && styles.contentDesktop, { paddingBottom: listBottomPad }]}
+      showsVerticalScrollIndicator={false}
+      contentInsetAdjustmentBehavior="automatic"
+      stickyHeaderIndices={Platform.OS === 'web' ? [1] : undefined}
+    >
         {/* Header */}
         <View style={[styles.header, isDesktop && styles.blockDesktop]}>
           <View>
@@ -243,9 +242,9 @@ export default function HomeScreen() {
             </View>
           </>
         )}
-      </ScrollView>
+    </ScrollView>
 
-      <Modal
+    <Modal
         visible={showFilters}
         animationType="slide"
         transparent
@@ -356,7 +355,9 @@ const styles = StyleSheet.create({
   },
   scroll: {
     flex: 1,
+    backgroundColor: COLORS.bg,
   },
+
   content: {
     paddingBottom: 24,
   },

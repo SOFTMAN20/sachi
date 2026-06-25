@@ -1,10 +1,9 @@
 import React, { useState, useMemo } from 'react';
 import {
   View, Text, ScrollView, TouchableOpacity, StyleSheet,
-  SafeAreaView, TextInput, Platform, Modal, Pressable, useWindowDimensions,
+  TextInput, Platform, Modal, Pressable, useWindowDimensions,
 } from 'react-native';
-import { Search, MapPin, Home as HomeIcon, Wallet, ChevronUp, X } from 'lucide-react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { Search, MapPin, Hop as HomeIcon, Wallet, ChevronUp, X } from 'lucide-react-native';
 import { NEIGHBOURHOODS } from '@/data/mockData';
 import PropertyCard from '@/components/PropertyCard';
 import { useApp } from '@/context/AppContext';
@@ -43,10 +42,9 @@ const TYPE_OPTIONS: { label: string; value: PropertyType | 'all' }[] = [
 export default function ExploreScreen() {
   const { properties } = useApp();
   const { width } = useWindowDimensions();
-  const insets = useSafeAreaInsets();
   const isDesktop = Platform.OS === 'web' && width >= DESKTOP_BREAKPOINT;
-  // Clear the floating filter dock + native tab bar so the last card is reachable.
-  const listBottomPad = Platform.OS === 'web' ? 120 : insets.bottom + 160;
+  // On native iOS, contentInsetAdjustmentBehavior handles tab bar insets automatically.
+  const listBottomPad = Platform.OS === 'web' ? 120 : 0;
   const [search, setSearch] = useState('');
   const [selectedNeighbourhood, setSelectedNeighbourhood] = useState('All Areas');
   const [selectedPriceIndex, setSelectedPriceIndex] = useState(0);
@@ -95,7 +93,12 @@ export default function ExploreScreen() {
     );
 
   return (
-    <SafeAreaView style={styles.safe}>
+    <ScrollView
+      style={styles.scroll}
+      contentContainerStyle={[{ paddingBottom: listBottomPad }]}
+      showsVerticalScrollIndicator={false}
+      contentInsetAdjustmentBehavior="automatic"
+    >
       <View style={[styles.header, isDesktop && styles.blockDesktop]}>
         <Text style={styles.headerTitle}>Explore</Text>
         <Text style={styles.headerSub}>Find properties across Tanzania</Text>
@@ -136,7 +139,7 @@ export default function ExploreScreen() {
       </ScrollView>
 
       {/* Bolt-style bottom dock */}
-      <TouchableOpacity style={[styles.dock, isDesktop && styles.dockDesktop, Platform.OS !== 'web' && { bottom: insets.bottom + 12 }]} onPress={() => setShowFilters(true)} activeOpacity={0.9}>
+      <TouchableOpacity style={[styles.dock, isDesktop && styles.dockDesktop]} onPress={() => setShowFilters(true)} activeOpacity={0.9}>
         <View style={styles.dockHandleRow}>
           <View style={styles.dockHandle} />
         </View>
@@ -238,7 +241,7 @@ export default function ExploreScreen() {
           </Pressable>
         </Pressable>
       </Modal>
-    </SafeAreaView>
+    </ScrollView>
   );
 }
 
