@@ -1,7 +1,7 @@
 import React from 'react';
 import {
   View, Text, Image, ScrollView, TouchableOpacity, StyleSheet,
-  SafeAreaView, Platform, useWindowDimensions,
+  Platform, useWindowDimensions,
 } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import {
@@ -9,6 +9,7 @@ import {
   Phone, MessageCircle, Calendar, Calculator,
 } from 'lucide-react-native';
 import { useApp } from '@/context/AppContext';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 const DESKTOP_BREAKPOINT = 900;
 
@@ -37,20 +38,21 @@ export default function PropertyDetailScreen() {
   const router = useRouter();
   const { savedProperties, toggleSave, requestLogin, properties } = useApp();
   const { width } = useWindowDimensions();
+  const insets = useSafeAreaInsets();
   const isDesktop = Platform.OS === 'web' && width >= DESKTOP_BREAKPOINT;
 
   const property = properties.find(p => p.id === id);
 
   if (!property) {
     return (
-      <SafeAreaView style={styles.safe}>
+      <View style={styles.safe}>
         <View style={styles.notFound}>
           <Text style={styles.notFoundText}>Property not found</Text>
           <TouchableOpacity onPress={() => router.back()} style={styles.backLink}>
             <Text style={styles.backLinkText}>Go back</Text>
           </TouchableOpacity>
         </View>
-      </SafeAreaView>
+      </View>
     );
   }
 
@@ -94,7 +96,7 @@ export default function PropertyDetailScreen() {
   );
 
   const actionButtons = (
-    <>
+    <View style={[styles.actionsContainer, !isDesktop && { gap: 10 }]}>
       <TouchableOpacity
         style={[styles.secondaryAction, isDesktop && styles.actionBtnDesktop]}
         onPress={handleRequestViewing}
@@ -111,7 +113,7 @@ export default function PropertyDetailScreen() {
         <MessageCircle size={18} color="#FFFFFF" strokeWidth={2} />
         <Text style={styles.primaryActionText}>Contact Owner</Text>
       </TouchableOpacity>
-    </>
+    </View>
   );
 
   const detailsBlock = (
@@ -167,16 +169,23 @@ export default function PropertyDetailScreen() {
           <Text style={styles.ownerRating}>★ {property.ownerRating.toFixed(1)} rating</Text>
         </View>
       </View>
+
+      {/* Mobile action buttons - inside scroll content */}
+      {!isDesktop && (
+        <View style={styles.mobileActionsWrapper}>
+          {actionButtons}
+        </View>
+      )}
     </>
   );
 
   const imageEl = (
     <View style={[styles.imageWrap, isDesktop && styles.imageWrapDesktop]}>
       <Image source={{ uri: property.images[0] }} style={styles.image} resizeMode="cover" />
-      <TouchableOpacity style={styles.backBtn} onPress={() => router.back()}>
+      <TouchableOpacity style={[styles.backBtn, { top: insets.top + 8 }]} onPress={() => router.back()}>
         <ChevronLeft size={22} color="#FFFFFF" strokeWidth={2.5} />
       </TouchableOpacity>
-      <TouchableOpacity style={styles.heartBtn} onPress={() => toggleSave(property.id)}>
+      <TouchableOpacity style={[styles.heartBtn, { top: insets.top + 8 }]} onPress={() => toggleSave(property.id)}>
         <Heart
           size={20}
           color={isSaved ? '#EF4444' : '#FFFFFF'}
@@ -188,10 +197,15 @@ export default function PropertyDetailScreen() {
   );
 
   return (
-    <SafeAreaView style={styles.safe}>
+    <View style={styles.safe}>
       <ScrollView
         showsVerticalScrollIndicator={false}
-        contentContainerStyle={[styles.scrollContent, isDesktop && styles.scrollContentDesktop]}
+        contentInsetAdjustmentBehavior="automatic"
+        contentContainerStyle={[
+          styles.scrollContent,
+          isDesktop && styles.scrollContentDesktop,
+          !isDesktop && { paddingBottom: insets.bottom + 24 }
+        ]}
       >
         {isDesktop ? (
           <View style={styles.twoCol}>
@@ -217,19 +231,13 @@ export default function PropertyDetailScreen() {
           </>
         )}
       </ScrollView>
-
-      {!isDesktop && (
-        <View style={styles.actionBar}>
-          {actionButtons}
-        </View>
-      )}
-    </SafeAreaView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: COLORS.bg },
-  scrollContent: { paddingBottom: 24 },
+  scrollContent: { paddingBottom: 0 },
   scrollContentDesktop: {
     width: '100%',
     maxWidth: 1040,
@@ -243,17 +251,24 @@ const styles = StyleSheet.create({
   rightCol: { width: 340, gap: 16 },
   contentDesktop: { paddingHorizontal: 0, paddingTop: 16 },
   actionsCol: { gap: 10 },
+  actionsContainer: { flexDirection: 'row' },
   actionBtnDesktop: { flex: 0, alignSelf: 'stretch' },
+  mobileActionsWrapper: {
+    marginTop: 24,
+    paddingTop: 20,
+    borderTopWidth: 1,
+    borderTopColor: COLORS.border,
+  },
   imageWrap: { width: '100%', height: 320, position: 'relative' },
   imageWrapDesktop: { height: 400, borderRadius: 18, overflow: 'hidden' },
   image: { width: '100%', height: '100%' },
   backBtn: {
-    position: 'absolute', top: Platform.OS === 'ios' ? 50 : 16, left: 16,
+    position: 'absolute', left: 16,
     width: 40, height: 40, borderRadius: 20, backgroundColor: 'rgba(0,0,0,0.4)',
     alignItems: 'center', justifyContent: 'center',
   },
   heartBtn: {
-    position: 'absolute', top: Platform.OS === 'ios' ? 50 : 16, right: 16,
+    position: 'absolute', right: 16,
     width: 40, height: 40, borderRadius: 20, backgroundColor: 'rgba(0,0,0,0.4)',
     alignItems: 'center', justifyContent: 'center',
   },
@@ -273,6 +288,7 @@ const styles = StyleSheet.create({
     padding: 16,
     marginTop: 16,
     gap: 10,
+    borderCurve: 'continuous',
   },
   costCardHeader: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 2 },
   costCardTitle: { fontSize: 14, fontWeight: '700', color: COLORS.primary },
@@ -289,6 +305,7 @@ const styles = StyleSheet.create({
   amenityChip: {
     paddingHorizontal: 12, paddingVertical: 7, borderRadius: 16,
     backgroundColor: COLORS.primaryLight,
+    borderCurve: 'continuous',
   },
   amenityText: { fontSize: 12, fontWeight: '600', color: COLORS.primary },
   ownerRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
@@ -296,19 +313,17 @@ const styles = StyleSheet.create({
   ownerInfo: { gap: 2 },
   ownerName: { fontSize: 15, fontWeight: '700', color: COLORS.text },
   ownerRating: { fontSize: 13, color: COLORS.secondary, fontWeight: '600' },
-  actionBar: {
-    flexDirection: 'row', gap: 10, padding: 16,
-    paddingBottom: Platform.OS === 'ios' ? 28 : 16,
-    backgroundColor: COLORS.surface, borderTopWidth: 1, borderTopColor: COLORS.border,
-  },
   secondaryAction: {
     flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
     borderWidth: 1.5, borderColor: COLORS.primary, borderRadius: 14, paddingVertical: 14,
+    borderCurve: 'continuous',
   },
   secondaryActionText: { fontSize: 14, fontWeight: '700', color: COLORS.primary },
   primaryAction: {
     flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
     backgroundColor: COLORS.primary, borderRadius: 14, paddingVertical: 14,
+    borderCurve: 'continuous',
+    boxShadow: '0 2px 8px rgba(27, 107, 58, 0.2)',
   },
   primaryActionText: { fontSize: 14, fontWeight: '700', color: '#FFFFFF' },
   notFound: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 12 },
