@@ -7,6 +7,12 @@
     "icon": "./assets/images/icon.png",
     "scheme": "myapp",
     "userInterfaceStyle": "automatic",
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
+    "updates": {
+      "url": "https://u.expo.dev/779d0694-17c8-403c-a6a8-070244e8051c"
+    },
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.softman20.sachi"
