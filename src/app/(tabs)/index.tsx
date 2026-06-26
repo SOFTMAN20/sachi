@@ -46,7 +46,7 @@ export default function HomeScreen() {
   const router = useRouter();
   const { width } = useWindowDimensions();
   const isDesktop = Platform.OS === 'web' && width >= DESKTOP_BREAKPOINT;
-  const listBottomPad = Platform.OS === 'web' ? 24 : 0;
+  const listBottomPad = Platform.OS === 'web' ? 24 : 80; // Add space for tabs on mobile
   const [searchQuery, setSearchQuery] = useState('');
   const [activeFilter, setActiveFilter] = useState<PropertyType | 'all'>('all');
   const [whereQuery, setWhereQuery] = useState('');
