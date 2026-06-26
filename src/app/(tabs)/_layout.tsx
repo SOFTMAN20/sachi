@@ -1,12 +1,20 @@
 import { Tabs } from 'expo-router';
 import { View, StyleSheet, Platform } from 'react-native';
 import { Home, Search, MessageCircle, User } from 'lucide-react-native';
+import React from 'react';
 
 // Custom JS tab bar (renders a real native bottom tab bar via React Navigation).
 // Used on every platform — reliable, always visible, and tappable. The alpha
 // system NativeTabs were causing the tab bar to disappear, so we don't use them.
 const PRIMARY = '#1B6B3A';
 const INACTIVE = '#9CA3AF';
+
+// Icon wrapper component to ensure proper rendering
+const TabIcon = ({ IconComponent, color, focused }: { IconComponent: any; color: string; focused: boolean }) => (
+  <View style={focused ? styles.activeIconWrap : styles.iconWrap}>
+    <IconComponent size={22} color={color} strokeWidth={focused ? 2.5 : 2} />
+  </View>
+);
 
 export default function TabLayout() {
   return (
@@ -26,9 +34,7 @@ export default function TabLayout() {
         options={{
           title: 'Home',
           tabBarIcon: ({ color, focused }) => (
-            <View style={focused ? styles.activeIconWrap : undefined}>
-              <Home size={24} color={color} strokeWidth={focused ? 2.5 : 2} />
-            </View>
+            <TabIcon IconComponent={Home} color={color} focused={focused} />
           ),
         }}
       />
@@ -37,9 +43,7 @@ export default function TabLayout() {
         options={{
           title: 'Explore',
           tabBarIcon: ({ color, focused }) => (
-            <View style={focused ? styles.activeIconWrap : undefined}>
-              <Search size={24} color={color} strokeWidth={focused ? 2.5 : 2} />
-            </View>
+            <TabIcon IconComponent={Search} color={color} focused={focused} />
           ),
         }}
       />
@@ -55,9 +59,7 @@ export default function TabLayout() {
         options={{
           title: 'Messages',
           tabBarIcon: ({ color, focused }) => (
-            <View style={focused ? styles.activeIconWrap : undefined}>
-              <MessageCircle size={24} color={color} strokeWidth={focused ? 2.5 : 2} />
-            </View>
+            <TabIcon IconComponent={MessageCircle} color={color} focused={focused} />
           ),
         }}
       />
@@ -66,9 +68,7 @@ export default function TabLayout() {
         options={{
           title: 'Account',
           tabBarIcon: ({ color, focused }) => (
-            <View style={focused ? styles.activeIconWrap : undefined}>
-              <User size={24} color={color} strokeWidth={focused ? 2.5 : 2} />
-            </View>
+            <TabIcon IconComponent={User} color={color} focused={focused} />
           ),
         }}
       />
@@ -94,12 +94,29 @@ const styles = StyleSheet.create({
     shadowRadius: 8,
     elevation: 16,
   },
-  tabLabel: { fontSize: 11, fontWeight: '600', marginTop: 4 },
-  tabItem: { paddingTop: 4 },
+  tabLabel: { 
+    fontSize: 11, 
+    fontWeight: '600', 
+    marginTop: 4 
+  },
+  tabItem: { 
+    paddingTop: 4,
+    paddingBottom: 4,
+  },
+  iconWrap: {
+    justifyContent: 'center',
+    alignItems: 'center',
+    width: 44,
+    height: 32,
+  },
   activeIconWrap: {
     backgroundColor: '#E8F5E9',
     borderRadius: 12,
     paddingHorizontal: 14,
     paddingVertical: 6,
+    justifyContent: 'center',
+    alignItems: 'center',
+    minWidth: 44,
+    height: 32,
   },
 });
