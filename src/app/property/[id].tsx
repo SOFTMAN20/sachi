@@ -1,15 +1,16 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
   View, Text, Image, ScrollView, TouchableOpacity, StyleSheet,
-  Platform, useWindowDimensions,
+  Platform, useWindowDimensions, Modal, FlatList,
 } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import {
   ChevronLeft, Heart, MapPin, BedDouble, Bath, ShieldCheck,
-  Phone, MessageCircle, Calendar, Calculator,
+  Phone, MessageCircle, Calendar, Calculator, Images, X,
 } from 'lucide-react-native';
 import { useApp } from '@/context/AppContext';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import PropertyVideo from '@/components/PropertyVideo';
 
 const DESKTOP_BREAKPOINT = 900;
 
@@ -37,9 +38,12 @@ export default function PropertyDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
   const { savedProperties, toggleSave, requestLogin, properties } = useApp();
-  const { width } = useWindowDimensions();
+  const { width, height } = useWindowDimensions();
   const insets = useSafeAreaInsets();
   const isDesktop = Platform.OS === 'web' && width >= DESKTOP_BREAKPOINT;
+  const [galleryOpen, setGalleryOpen] = useState(false);
+  // null = photo grid is showing; a number = full-screen viewer open at that image index
+  const [viewerIndex, setViewerIndex] = useState<number | null>(null);
 
   const property = properties.find(p => p.id === id);
 
@@ -169,19 +173,22 @@ export default function PropertyDetailScreen() {
           <Text style={styles.ownerRating}>★ {property.ownerRating.toFixed(1)} rating</Text>
         </View>
       </View>
-
-      {/* Mobile action buttons - inside scroll content */}
-      {!isDesktop && (
-        <View style={styles.mobileActionsWrapper}>
-          {actionButtons}
-        </View>
-      )}
     </>
   );
 
   const imageEl = (
     <View style={[styles.imageWrap, isDesktop && styles.imageWrapDesktop]}>
-      <Image source={{ uri: property.images[0] }} style={styles.image} resizeMode="cover" />
+      {property.videoUrl ? (
+        <PropertyVideo
+          uri={property.videoUrl}
+          poster={property.images[0]}
+          active
+          style={styles.image}
+          showMute
+        />
+      ) : (
+        <Image source={{ uri: property.images[0] }} style={styles.image} resizeMode="cover" />
+      )}
       <TouchableOpacity style={[styles.backBtn, { top: insets.top + 8 }]} onPress={() => router.back()}>
         <ChevronLeft size={22} color="#FFFFFF" strokeWidth={2.5} />
       </TouchableOpacity>
@@ -193,18 +200,135 @@ export default function PropertyDetailScreen() {
           strokeWidth={2}
         />
       </TouchableOpacity>
+
+      {/* View photos — opens the full gallery if images are available */}
+      {property.images.length > 0 && (
+        <TouchableOpacity
+          style={styles.viewPhotosBtn}
+          onPress={() => { setViewerIndex(null); setGalleryOpen(true); }}
+          activeOpacity={0.85}
+        >
+          <Images size={15} color={COLORS.text} strokeWidth={2} />
+          <Text style={styles.viewPhotosText}>View photos ({property.images.length})</Text>
+        </TouchableOpacity>
+      )}
     </View>
+  );
+
+  // Photo grid: a large hero (first photo) above a balanced 2-column grid of the rest.
+  // Content is capped and centered so it stays tidy on wide web/desktop screens.
+  const GALLERY_PAD = 12;
+  const GALLERY_GAP = 8;
+  const galleryContentW = Math.min(width, 760);
+  const galleryInnerW = galleryContentW - GALLERY_PAD * 2;
+  const galleryHalfW = (galleryInnerW - GALLERY_GAP) / 2;
+  const galleryHeroH = Math.min(galleryInnerW * 0.62, 440);
+
+  const galleryModal = (
+    <Modal
+      visible={galleryOpen}
+      animationType="fade"
+      transparent={false}
+      statusBarTranslucent
+      onRequestClose={() => {
+        // Android hardware back: from the viewer, step back to the grid; from the grid, close.
+        if (viewerIndex !== null) setViewerIndex(null);
+        else setGalleryOpen(false);
+      }}
+    >
+      {viewerIndex === null ? (
+        /* ---- Grid: all photos on one screen ---- */
+        <View style={[styles.gridRoot, { paddingTop: insets.top }]}>
+          <View style={styles.galleryBar}>
+            <TouchableOpacity style={styles.galleryBarBtn} onPress={() => setGalleryOpen(false)}>
+              <X size={22} color={COLORS.text} strokeWidth={2.5} />
+            </TouchableOpacity>
+            <Text style={styles.galleryBarTitle}>All photos ({property.images.length})</Text>
+            <View style={styles.galleryBarBtn} />
+          </View>
+          <ScrollView
+            contentContainerStyle={{
+              paddingVertical: GALLERY_PAD,
+              paddingBottom: insets.bottom + GALLERY_PAD,
+              alignItems: 'center',
+            }}
+            showsVerticalScrollIndicator={false}
+          >
+            <View style={{ width: galleryInnerW, gap: GALLERY_GAP }}>
+              {/* Hero — first photo, full width */}
+              <TouchableOpacity
+                activeOpacity={0.9}
+                onPress={() => setViewerIndex(0)}
+                style={[styles.gridHero, { height: galleryHeroH }]}
+              >
+                <Image source={{ uri: property.images[0] }} style={styles.gridCellImg} resizeMode="cover" />
+              </TouchableOpacity>
+
+              {/* Remaining photos — balanced 2-column grid */}
+              {property.images.length > 1 && (
+                <View style={styles.gridWrap}>
+                  {property.images.slice(1).map((uri, i) => (
+                    <TouchableOpacity
+                      key={`${i}-${uri}`}
+                      activeOpacity={0.9}
+                      onPress={() => setViewerIndex(i + 1)}
+                      style={{ width: galleryHalfW, height: galleryHalfW }}
+                    >
+                      <Image source={{ uri }} style={styles.gridCellImg} resizeMode="cover" />
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              )}
+            </View>
+          </ScrollView>
+        </View>
+      ) : (
+        /* ---- Full-screen swipeable viewer, opened at the tapped photo ---- */
+        <View style={styles.galleryRoot}>
+          <FlatList
+            data={property.images}
+            keyExtractor={(uri, i) => `${i}-${uri}`}
+            horizontal
+            pagingEnabled
+            showsHorizontalScrollIndicator={false}
+            initialScrollIndex={viewerIndex}
+            getItemLayout={(_, index) => ({ length: width, offset: width * index, index })}
+            onMomentumScrollEnd={e =>
+              setViewerIndex(Math.round(e.nativeEvent.contentOffset.x / width))
+            }
+            renderItem={({ item }) => (
+              <View style={{ width, height, justifyContent: 'center' }}>
+                <Image source={{ uri: item }} style={styles.galleryImage} resizeMode="contain" />
+              </View>
+            )}
+          />
+          {/* Back to the grid */}
+          <TouchableOpacity
+            style={[styles.galleryClose, { top: insets.top + 8 }]}
+            onPress={() => setViewerIndex(null)}
+          >
+            <ChevronLeft size={24} color="#FFFFFF" strokeWidth={2.5} />
+          </TouchableOpacity>
+          <View style={[styles.galleryCounter, { bottom: insets.bottom + 20 }]}>
+            <Text style={styles.galleryCounterText}>
+              {viewerIndex + 1} / {property.images.length}
+            </Text>
+          </View>
+        </View>
+      )}
+    </Modal>
   );
 
   return (
     <View style={styles.safe}>
       <ScrollView
+        style={styles.scroll}
         showsVerticalScrollIndicator={false}
         contentInsetAdjustmentBehavior="automatic"
         contentContainerStyle={[
           styles.scrollContent,
           isDesktop && styles.scrollContentDesktop,
-          !isDesktop && { paddingBottom: insets.bottom + 24 }
+          !isDesktop && { paddingBottom: 24 }
         ]}
       >
         {isDesktop ? (
@@ -231,12 +355,22 @@ export default function PropertyDetailScreen() {
           </>
         )}
       </ScrollView>
+
+      {/* Sticky bottom action bar - mobile only */}
+      {!isDesktop && (
+        <View style={[styles.stickyBar, { paddingBottom: insets.bottom + 12 }]}>
+          {actionButtons}
+        </View>
+      )}
+
+      {galleryModal}
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: COLORS.bg },
+  scroll: { flex: 1 },
   scrollContent: { paddingBottom: 0 },
   scrollContentDesktop: {
     width: '100%',
@@ -253,13 +387,70 @@ const styles = StyleSheet.create({
   actionsCol: { gap: 10 },
   actionsContainer: { flexDirection: 'row' },
   actionBtnDesktop: { flex: 0, alignSelf: 'stretch' },
-  mobileActionsWrapper: {
-    marginTop: 24,
-    paddingTop: 20,
+  stickyBar: {
+    backgroundColor: COLORS.surface,
+    paddingHorizontal: 20,
+    paddingTop: 12,
     borderTopWidth: 1,
     borderTopColor: COLORS.border,
+    boxShadow: '0 -2px 12px rgba(0, 0, 0, 0.06)',
   },
-  imageWrap: { width: '100%', height: 320, position: 'relative' },
+  imageWrap: { width: '100%', height: 420, position: 'relative' },
+  viewPhotosBtn: {
+    position: 'absolute',
+    right: 14,
+    bottom: 14,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: 'rgba(255,255,255,0.95)',
+    borderRadius: 20,
+    paddingHorizontal: 13,
+    paddingVertical: 8,
+    boxShadow: '0 2px 8px rgba(0,0,0,0.2)',
+  },
+  viewPhotosText: { fontSize: 13, fontWeight: '700', color: COLORS.text },
+  gridRoot: { flex: 1, backgroundColor: COLORS.surface },
+  galleryBar: {
+    height: 52,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: COLORS.border,
+  },
+  galleryBarBtn: {
+    width: 40,
+    height: 40,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  galleryBarTitle: { fontSize: 16, fontWeight: '800', color: COLORS.text },
+  gridCellImg: { width: '100%', height: '100%', borderRadius: 14, backgroundColor: '#ECEEF0' },
+  gridHero: { width: '100%', borderRadius: 14, overflow: 'hidden', backgroundColor: '#ECEEF0' },
+  gridWrap: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  galleryRoot: { flex: 1, backgroundColor: '#000' },
+  galleryImage: { width: '100%', height: '100%' },
+  galleryClose: {
+    position: 'absolute',
+    left: 16,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  galleryCounter: {
+    position: 'absolute',
+    alignSelf: 'center',
+    backgroundColor: 'rgba(0,0,0,0.6)',
+    borderRadius: 16,
+    paddingHorizontal: 14,
+    paddingVertical: 6,
+  },
+  galleryCounterText: { color: '#FFFFFF', fontSize: 13, fontWeight: '700' },
   imageWrapDesktop: { height: 400, borderRadius: 18, overflow: 'hidden' },
   image: { width: '100%', height: '100%' },
   backBtn: {
