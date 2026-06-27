@@ -22,6 +22,7 @@ export interface Property {
   verifiedPhone: boolean;
   verifiedId: boolean;
   images: string[];
+  videoUrl?: string;
   lat: number;
   lng: number;
   ownerName: string;
