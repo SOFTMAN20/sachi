@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useCallback, useEffect, useRef, ReactNode } from 'react';
+import React, { createContext, useContext, useState, useCallback, useRef, ReactNode } from 'react';
 import { UserRole, Property } from '@/types';
 import { MOCK_PROPERTIES } from '@/data/mockData';
 
@@ -51,15 +51,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
     setProperties(prev => [property, ...prev]);
   }, []);
 
-  // Onboarding: onyesha RoleModal baada ya sekunde 10 kama bado hajachagua role.
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      if (!roleChosenRef.current) {
-        setShowRoleModal(true);
-      }
-    }, 10000);
-    return () => clearTimeout(timer);
-  }, []);
+  // Onboarding RoleModal auto-popup imezimwa kwa sasa. Bado inaweza kufunguliwa
+  // kwa mkono kupitia reopenRoleModal (mf. kutoka Settings).
 
   const setUserRole = useCallback((role: UserRole) => {
     roleChosenRef.current = true;
