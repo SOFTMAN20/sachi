@@ -2,10 +2,12 @@ import React from 'react';
 import {
   View, Text, Image, TouchableOpacity, StyleSheet, useWindowDimensions, Platform,
 } from 'react-native';
-import { Heart, MapPin, BedDouble, Bath, ShieldCheck } from 'lucide-react-native';
+import { Heart, BedDouble, Bath, ShieldCheck, Play, Star } from 'lucide-react-native';
 import { useRouter } from 'expo-router';
 import { useApp } from '@/context/AppContext';
 import { Property } from '@/types';
+import PropertyVideo from '@/components/PropertyVideo';
+import ImageCarousel from '@/components/ImageCarousel';
 
 const DESKTOP_BREAKPOINT = 900;
 
@@ -30,15 +32,18 @@ function formatRent(amount: number) {
 interface Props {
   property: Property;
   horizontal?: boolean;
+  /** When true and the card has a video, it autoplays (Instagram-feed style). */
+  active?: boolean;
 }
 
-export default function PropertyCard({ property, horizontal = false }: Props) {
+export default function PropertyCard({ property, horizontal = false, active = false }: Props) {
   const router = useRouter();
   const { savedProperties, toggleSave } = useApp();
   const isSaved = savedProperties.has(property.id);
   const { width } = useWindowDimensions();
   const isDesktop = Platform.OS === 'web' && width >= DESKTOP_BREAKPOINT;
   const horizontalWidth = isDesktop ? 320 : width * 0.68;
+  const hasVideo = !!property.videoUrl;
 
   return (
     <TouchableOpacity
@@ -46,13 +51,32 @@ export default function PropertyCard({ property, horizontal = false }: Props) {
       onPress={() => router.push(`/property/${property.id}`)}
       activeOpacity={0.9}
     >
-      {/* Image */}
+      {/* Media — autoplaying video when available, else image */}
       <View style={[styles.imageWrap, horizontal && styles.imageWrapHorizontal]}>
-        <Image
-          source={{ uri: property.images[0] }}
-          style={styles.image}
-          resizeMode="cover"
-        />
+        {hasVideo ? (
+          <PropertyVideo
+            uri={property.videoUrl!}
+            poster={property.images[0]}
+            active={active}
+            style={styles.image}
+            showMute={!horizontal}
+          />
+        ) : property.images.length > 1 ? (
+          <ImageCarousel images={property.images} style={styles.image} />
+        ) : (
+          <Image
+            source={{ uri: property.images[0] }}
+            style={styles.image}
+            resizeMode="cover"
+          />
+        )}
+
+        {/* Video indicator */}
+        {hasVideo && !active && (
+          <View style={styles.videoBadge}>
+            <Play size={11} color="#FFFFFF" fill="#FFFFFF" strokeWidth={2} />
+          </View>
+        )}
 
         {/* Save button */}
         <TouchableOpacity
@@ -61,9 +85,9 @@ export default function PropertyCard({ property, horizontal = false }: Props) {
           hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
         >
           <Heart
-            size={18}
-            color={isSaved ? '#EF4444' : '#FFFFFF'}
-            fill={isSaved ? '#EF4444' : 'transparent'}
+            size={26}
+            color="#FFFFFF"
+            fill={isSaved ? '#FF385C' : 'rgba(0,0,0,0.4)'}
             strokeWidth={2}
           />
         </TouchableOpacity>
@@ -71,41 +95,41 @@ export default function PropertyCard({ property, horizontal = false }: Props) {
         {/* Trending badge */}
         {property.isTrending && (
           <View style={styles.trendingBadge}>
-            <Text style={styles.trendingText}>Trending</Text>
+            <Text style={styles.trendingText}>★ Trending</Text>
           </View>
         )}
 
         {/* Verification badge */}
         {property.verifiedPhone && (
           <View style={styles.verifiedBadge}>
-            <ShieldCheck size={12} color="#FFFFFF" fill="#16A34A" strokeWidth={2} />
+            <ShieldCheck size={12} color={COLORS.verified} strokeWidth={2.5} />
+            <Text style={styles.verifiedBadgeText}>Verified</Text>
           </View>
         )}
       </View>
 
       {/* Info */}
       <View style={styles.info}>
-        <View style={styles.locationRow}>
-          <MapPin size={12} color={COLORS.textSecondary} strokeWidth={2} />
-          <Text style={styles.locationText} numberOfLines={1}>
+        <View style={styles.titleRow}>
+          <Text style={styles.location} numberOfLines={1}>
             {property.neighbourhood}, {property.city}
           </Text>
+          <View style={styles.ratingRow}>
+            <Star size={13} color={COLORS.text} fill={COLORS.text} strokeWidth={0} />
+            <Text style={styles.ratingText}>{property.ownerRating.toFixed(1)}</Text>
+          </View>
         </View>
 
-        <Text style={styles.title} numberOfLines={2}>{property.title}</Text>
+        <Text style={styles.subtitle} numberOfLines={1}>{property.title}</Text>
 
         <View style={styles.detailsRow}>
-          <View style={styles.detailItem}>
-            <BedDouble size={13} color={COLORS.textSecondary} strokeWidth={1.8} />
-            <Text style={styles.detailText}>{property.bedrooms} bed</Text>
-          </View>
+          <BedDouble size={13} color={COLORS.textSecondary} strokeWidth={1.8} />
+          <Text style={styles.detailText}>{property.bedrooms} bd</Text>
           <View style={styles.dot} />
-          <View style={styles.detailItem}>
-            <Bath size={13} color={COLORS.textSecondary} strokeWidth={1.8} />
-            <Text style={styles.detailText}>{property.bathrooms} bath</Text>
-          </View>
+          <Bath size={13} color={COLORS.textSecondary} strokeWidth={1.8} />
+          <Text style={styles.detailText}>{property.bathrooms} ba</Text>
           <View style={styles.dot} />
-          <Text style={styles.detailText}>
+          <Text style={styles.detailText} numberOfLines={1}>
             {property.furnishing === 'furnished' ? 'Furnished'
               : property.furnishing === 'semi_furnished' ? 'Semi-furnished'
               : 'Unfurnished'}
@@ -114,7 +138,7 @@ export default function PropertyCard({ property, horizontal = false }: Props) {
 
         <View style={styles.priceRow}>
           <Text style={styles.price}>{formatRent(property.monthlyRent)}</Text>
-          <Text style={styles.priceUnit}>/mo</Text>
+          <Text style={styles.priceUnit}> /month</Text>
         </View>
       </View>
     </TouchableOpacity>
@@ -123,15 +147,8 @@ export default function PropertyCard({ property, horizontal = false }: Props) {
 
 const styles = StyleSheet.create({
   card: {
-    backgroundColor: COLORS.surface,
-    borderRadius: 18,
-    overflow: 'hidden',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.08,
-    shadowRadius: 10,
-    elevation: 3,
-    marginBottom: 16,
+    backgroundColor: 'transparent',
+    marginBottom: 24,
   },
   cardHorizontal: {
     marginBottom: 0,
@@ -139,11 +156,14 @@ const styles = StyleSheet.create({
   },
   imageWrap: {
     width: '100%',
-    height: 200,
+    aspectRatio: 1.18,
+    borderRadius: 18,
+    overflow: 'hidden',
     position: 'relative',
+    backgroundColor: '#ECEEF0',
   },
   imageWrapHorizontal: {
-    height: 160,
+    aspectRatio: 1.3,
   },
   image: {
     width: '100%',
@@ -153,10 +173,9 @@ const styles = StyleSheet.create({
     position: 'absolute',
     top: 12,
     right: 12,
-    width: 34,
-    height: 34,
-    borderRadius: 17,
-    backgroundColor: 'rgba(0,0,0,0.35)',
+    width: 36,
+    height: 36,
+    borderRadius: 18,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -164,82 +183,105 @@ const styles = StyleSheet.create({
     position: 'absolute',
     top: 12,
     left: 12,
-    backgroundColor: '#F5A623',
-    borderRadius: 8,
-    paddingHorizontal: 10,
-    paddingVertical: 4,
+    backgroundColor: 'rgba(255,255,255,0.95)',
+    borderRadius: 20,
+    paddingHorizontal: 12,
+    paddingVertical: 5,
   },
   trendingText: {
     fontSize: 11,
-    fontWeight: '700',
-    color: '#FFFFFF',
-    letterSpacing: 0.3,
+    fontWeight: '800',
+    color: COLORS.text,
+    letterSpacing: 0.2,
   },
-  verifiedBadge: {
+  videoBadge: {
     position: 'absolute',
-    bottom: 10,
-    right: 10,
-    width: 24,
-    height: 24,
-    borderRadius: 12,
-    backgroundColor: '#16A34A',
+    bottom: 12,
+    left: 12,
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: 'rgba(0,0,0,0.45)',
     alignItems: 'center',
     justifyContent: 'center',
   },
-  info: {
-    padding: 14,
-    gap: 6,
-  },
-  locationRow: {
+  verifiedBadge: {
+    position: 'absolute',
+    bottom: 12,
+    right: 12,
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
+    backgroundColor: 'rgba(255,255,255,0.95)',
+    borderRadius: 20,
+    paddingHorizontal: 9,
+    paddingVertical: 5,
   },
-  locationText: {
-    fontSize: 12,
-    color: COLORS.textSecondary,
-    flex: 1,
+  verifiedBadgeText: {
+    fontSize: 11,
+    fontWeight: '800',
+    color: COLORS.verified,
   },
-  title: {
-    fontSize: 15,
-    fontWeight: '700',
-    color: COLORS.text,
-    lineHeight: 21,
+  info: {
+    paddingTop: 11,
+    gap: 3,
   },
-  detailsRow: {
+  titleRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
+    justifyContent: 'space-between',
+    gap: 8,
   },
-  detailItem: {
+  location: {
+    flex: 1,
+    fontSize: 15.5,
+    fontWeight: '700',
+    color: COLORS.text,
+    letterSpacing: -0.2,
+  },
+  ratingRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 3,
   },
+  ratingText: {
+    fontSize: 13.5,
+    fontWeight: '600',
+    color: COLORS.text,
+  },
+  subtitle: {
+    fontSize: 14,
+    color: COLORS.textSecondary,
+  },
+  detailsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+  },
   detailText: {
-    fontSize: 12,
+    fontSize: 13,
     color: COLORS.textSecondary,
   },
   dot: {
     width: 3,
     height: 3,
     borderRadius: 1.5,
-    backgroundColor: COLORS.border,
+    backgroundColor: COLORS.textSecondary,
+    marginHorizontal: 2,
   },
   priceRow: {
     flexDirection: 'row',
     alignItems: 'baseline',
-    gap: 2,
-    marginTop: 2,
+    marginTop: 4,
   },
   price: {
-    fontSize: 18,
+    fontSize: 16,
     fontWeight: '800',
-    color: COLORS.primary,
-    letterSpacing: -0.3,
+    color: COLORS.text,
+    letterSpacing: -0.2,
   },
   priceUnit: {
-    fontSize: 13,
+    fontSize: 14,
     color: COLORS.textSecondary,
     fontWeight: '500',
   },
