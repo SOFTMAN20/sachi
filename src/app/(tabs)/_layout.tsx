@@ -1,8 +1,10 @@
 import { Tabs } from 'expo-router';
 import React from 'react';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 export default function TabLayout() {
+  const insets = useSafeAreaInsets();
   return (
     <Tabs
       screenOptions={{
@@ -13,8 +15,10 @@ export default function TabLayout() {
           backgroundColor: '#FFFFFF',
           borderTopWidth: 1,
           borderTopColor: '#E5E7EB',
-          height: 65,
-          paddingBottom: 8,
+          // Lift the bar above the phone's system nav/gesture bar so the tabs
+          // stay tappable and don't overlap the OS navigation.
+          height: 60 + insets.bottom,
+          paddingBottom: insets.bottom + 6,
           paddingTop: 8,
         },
         tabBarLabelStyle: {
