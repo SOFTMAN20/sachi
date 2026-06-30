@@ -72,6 +72,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
     setIsLoggedIn(true);
     setUserPhone(phone);
     setUserName(name || phone.replace('+255', '0'));
+    // Every new user starts as a tenant/renter. The role is upgraded later
+    // (e.g. to landlord/agent) when they choose one in the hosting flow,
+    // so we never overwrite a role the user has already picked.
+    setUserRoleState(prev => prev ?? 'tenant');
     setShowLoginModal(false);
     setPendingAction(prev => {
       if (prev) {
@@ -89,6 +93,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
     setWhatsappPhone('');
     setUserEmail('');
     setSavedProperties(new Set());
+    setUserRoleState(null);
+    roleChosenRef.current = false;
   }, []);
 
   const updateProfile = useCallback((fields: { name?: string; businessName?: string; phone?: string; whatsappPhone?: string; email?: string }) => {

@@ -74,7 +74,7 @@ function formatTZS(value: string) {
 
 export default function AddListingScreen() {
   const router = useRouter();
-  const { isLoggedIn, userName, requestLogin, addProperty } = useApp();
+  const { isLoggedIn, userName, requestLogin, addProperty, setUserRole } = useApp();
 
   const [step, setStep] = useState(0);
   const [hostRole, setHostRole] = useState<UserRole | null>(null);
@@ -218,6 +218,11 @@ export default function AddListingScreen() {
       ownerRating: 5.0,
       createdAt: new Date().toISOString().slice(0, 10),
     };
+    // Persist the role the user chose while hosting so their account reflects
+    // it (e.g. unlocks the matching dashboard on the profile screen).
+    if (hostRole) {
+      setUserRole(hostRole);
+    }
     addProperty(newProperty);
     router.replace(`/property/${id}`);
   };

@@ -6,6 +6,8 @@ import {
 } from 'react-native';
 import { X, Phone, Shield, ArrowRight } from 'lucide-react-native';
 import { useApp } from '@/context/AppContext';
+import GoogleIcon from '@/components/icons/GoogleIcon';
+import PhoneIcon from '@/components/icons/PhoneIcon';
 
 type Step = 'method' | 'phone' | 'otp';
 
@@ -154,7 +156,7 @@ export default function LoginModal() {
                   activeOpacity={0.85}
                 >
                   <View style={styles.methodIconWrap}>
-                    <Phone size={20} color={COLORS.primary} strokeWidth={2} />
+                    <PhoneIcon size={22} />
                   </View>
                   <View style={styles.methodTextWrap}>
                     <Text style={styles.methodTitle}>Continue with Phone</Text>
@@ -178,7 +180,7 @@ export default function LoginModal() {
                   activeOpacity={0.85}
                 >
                   <View style={[styles.methodIconWrap, styles.googleIconWrap]}>
-                    <Text style={styles.googleIcon}>G</Text>
+                    <GoogleIcon size={22} />
                   </View>
                   <View style={styles.methodTextWrap}>
                     <Text style={styles.methodTitle}>
@@ -490,11 +492,6 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFFFFF',
     borderWidth: 1,
     borderColor: '#E5E7EB',
-  },
-  googleIcon: {
-    fontSize: 20,
-    fontWeight: '700',
-    color: '#4285F4',
   },
   methodTextWrap: {
     flex: 1,
