@@ -411,7 +411,7 @@ export default function HomeScreen() {
           </Pressable>
         </Modal>
       ) : (
-        <BottomSheet visible={showFilters} onClose={() => setShowFilters(false)}>
+        <BottomSheet visible={showFilters} onClose={() => setShowFilters(false)} initialFull>
           {filterHeader}
           <ScrollView
             showsVerticalScrollIndicator={false}

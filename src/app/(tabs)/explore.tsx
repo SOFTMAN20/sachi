@@ -4,9 +4,10 @@ import {
   TextInput, Platform, Modal, Pressable, useWindowDimensions,
   SafeAreaView,
 } from 'react-native';
-import { Search, MapPin, Hop as HomeIcon, Wallet, ChevronUp, X } from 'lucide-react-native';
+import { Search, X, SlidersHorizontal, LayoutGrid, Building2, Home, BedDouble, Hotel, Briefcase } from 'lucide-react-native';
 import { NEIGHBOURHOODS } from '@/data/mockData';
 import PropertyCard from '@/components/PropertyCard';
+import BottomSheet from '@/components/BottomSheet';
 import { useApp } from '@/context/AppContext';
 import { PropertyType } from '@/types';
 
@@ -40,23 +41,39 @@ const TYPE_OPTIONS: { label: string; value: PropertyType | 'all' }[] = [
   { label: 'Office', value: 'office' },
 ];
 
+// Airbnb-style category bar shown under the search pill.
+const CATEGORIES: { label: string; value: PropertyType | 'all'; icon: React.FC<any> }[] = [
+  { label: 'All', value: 'all', icon: LayoutGrid },
+  { label: 'Apartments', value: 'apartment', icon: Building2 },
+  { label: 'Houses', value: 'house', icon: Home },
+  { label: 'Rooms', value: 'room', icon: BedDouble },
+  { label: 'Hostels', value: 'hostel', icon: Hotel },
+  { label: 'Offices', value: 'office', icon: Briefcase },
+];
+
 export default function ExploreScreen() {
   const { properties } = useApp();
   const { width } = useWindowDimensions();
   const isDesktop = Platform.OS === 'web' && width >= DESKTOP_BREAKPOINT;
   const listBottomPad = Platform.OS === 'web' ? 120 : 0;
   const [search, setSearch] = useState('');
-  const [selectedNeighbourhood, setSelectedNeighbourhood] = useState('All Areas');
+  const [whereQuery, setWhereQuery] = useState('');
   const [selectedPriceIndex, setSelectedPriceIndex] = useState(0);
   const [selectedType, setSelectedType] = useState<PropertyType | 'all'>('all');
   const [showFilters, setShowFilters] = useState(false);
 
-  const filtersActive = selectedNeighbourhood !== 'All Areas' || selectedPriceIndex !== 0 || selectedType !== 'all';
+  const filtersActive = whereQuery.trim().length > 0 || selectedPriceIndex !== 0 || selectedType !== 'all';
+
+  const whereSuggestions = useMemo(() => {
+    const q = whereQuery.trim().toLowerCase();
+    return NEIGHBOURHOODS.filter(n => n !== 'All Areas' && n.toLowerCase().includes(q));
+  }, [whereQuery]);
 
   const filtered = useMemo(() => {
     const priceRange = PRICE_RANGES[selectedPriceIndex];
+    const wq = whereQuery.trim().toLowerCase();
     return properties.filter(p => {
-      if (selectedNeighbourhood !== 'All Areas' && p.neighbourhood !== selectedNeighbourhood) return false;
+      if (wq && !p.neighbourhood.toLowerCase().includes(wq)) return false;
       if (p.monthlyRent < priceRange.min || p.monthlyRent > priceRange.max) return false;
       if (selectedType !== 'all' && p.propertyType !== selectedType) return false;
       if (search.trim()) {
@@ -68,10 +85,10 @@ export default function ExploreScreen() {
       }
       return true;
     });
-  }, [search, selectedNeighbourhood, selectedPriceIndex, selectedType, properties]);
+  }, [search, whereQuery, selectedPriceIndex, selectedType, properties]);
 
   const clearFilters = () => {
-    setSelectedNeighbourhood('All Areas');
+    setWhereQuery('');
     setSelectedPriceIndex(0);
     setSelectedType('all');
   };
@@ -79,18 +96,104 @@ export default function ExploreScreen() {
   const typeLabel = TYPE_OPTIONS.find(t => t.value === selectedType)?.label ?? 'All Types';
   const priceLabel = PRICE_RANGES[selectedPriceIndex].label;
 
-  const renderCardList = (list: typeof properties) =>
-    isDesktop ? (
-      <View style={styles.grid}>
-        {list.map(p => (
-          <View key={p.id} style={styles.gridItem}>
-            <PropertyCard property={p} />
-          </View>
+  const renderCardList = (list: typeof properties) => (
+    // Every visible listing with a video autoplays (muted) in the grid.
+    <View style={isDesktop ? styles.grid : styles.gridMobile}>
+      {list.map(p => (
+        <View key={p.id} style={isDesktop ? styles.gridItem : styles.gridItemMobile}>
+          <PropertyCard property={p} active={!!p.videoUrl} showAmenities={false} />
+        </View>
+      ))}
+    </View>
+  );
+
+  // ---- Filter sheet building blocks (shared by mobile sheet + desktop modal) ----
+  const filterHeader = (
+    <View style={styles.sheetHeader}>
+      <Text style={styles.sheetTitle}>Filters</Text>
+      <TouchableOpacity style={styles.sheetCloseBtn} onPress={() => setShowFilters(false)}>
+        <X size={18} color={COLORS.textSecondary} strokeWidth={2} />
+      </TouchableOpacity>
+    </View>
+  );
+
+  const filterSections = (
+    <>
+      <Text style={styles.filterLabelText}>Type</Text>
+      <View style={styles.chipWrap}>
+        {CATEGORIES.map(c => {
+          const Icon = c.icon;
+          const active = selectedType === c.value;
+          return (
+            <TouchableOpacity
+              key={c.value}
+              style={[styles.chip, styles.chipIcon, active && styles.chipActive]}
+              onPress={() => setSelectedType(c.value)}
+            >
+              <Icon size={14} color={active ? '#FFFFFF' : COLORS.textSecondary} strokeWidth={2} />
+              <Text style={[styles.chipText, active && styles.chipTextActive]}>{c.label}</Text>
+            </TouchableOpacity>
+          );
+        })}
+      </View>
+
+      <Text style={[styles.filterLabelText, styles.filterLabelSpaced]}>Where</Text>
+      <View style={styles.whereInputWrap}>
+        <Search size={16} color={COLORS.textSecondary} strokeWidth={2} />
+        <TextInput
+          style={styles.whereInput}
+          placeholder="Where to live?"
+          placeholderTextColor={COLORS.textSecondary}
+          value={whereQuery}
+          onChangeText={setWhereQuery}
+        />
+        {whereQuery.length > 0 && (
+          <TouchableOpacity onPress={() => setWhereQuery('')} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+            <X size={16} color={COLORS.textSecondary} strokeWidth={2} />
+          </TouchableOpacity>
+        )}
+      </View>
+      <View style={styles.chipWrap}>
+        {whereSuggestions.map(n => (
+          <TouchableOpacity
+            key={n}
+            style={[styles.chip, whereQuery === n && styles.chipActive]}
+            onPress={() => setWhereQuery(n)}
+          >
+            <Text style={[styles.chipText, whereQuery === n && styles.chipTextActive]}>{n}</Text>
+          </TouchableOpacity>
         ))}
       </View>
-    ) : (
-      list.map(p => <PropertyCard key={p.id} property={p} />)
-    );
+
+      <Text style={[styles.filterLabelText, styles.filterLabelSpaced]}>Budget</Text>
+      <View style={styles.chipWrap}>
+        {PRICE_RANGES.map((pr, i) => (
+          <TouchableOpacity
+            key={pr.label}
+            style={[styles.chip, selectedPriceIndex === i && styles.chipActive]}
+            onPress={() => setSelectedPriceIndex(i)}
+          >
+            <Text style={[styles.chipText, selectedPriceIndex === i && styles.chipTextActive]}>{pr.label}</Text>
+          </TouchableOpacity>
+        ))}
+      </View>
+    </>
+  );
+
+  const filterFooter = (
+    <View style={styles.sheetFooter}>
+      <TouchableOpacity onPress={clearFilters} style={styles.sheetClearBtn}>
+        <Text style={styles.sheetClearText}>Clear all</Text>
+      </TouchableOpacity>
+      <TouchableOpacity
+        style={styles.sheetApplyBtn}
+        onPress={() => setShowFilters(false)}
+        activeOpacity={0.85}
+      >
+        <Text style={styles.sheetApplyText}>Show {filtered.length} properties</Text>
+      </TouchableOpacity>
+    </View>
+  );
 
   return (
     <SafeAreaView style={styles.safe}>
@@ -101,22 +204,54 @@ export default function ExploreScreen() {
           showsVerticalScrollIndicator={false}
           contentInsetAdjustmentBehavior="automatic"
         >
-          <View style={[styles.header, isDesktop && styles.blockDesktop]}>
-            <Text style={styles.headerTitle}>Explore</Text>
-            <Text style={styles.headerSub}>Find properties across Tanzania</Text>
-          </View>
-
-          <View style={[styles.searchRow, isDesktop && styles.blockDesktop]}>
-            <View style={styles.searchBar}>
-              <Search size={16} color={COLORS.textSecondary} strokeWidth={2} />
-              <TextInput
-                style={styles.searchInput}
-                placeholder="Search area or property..."
-                placeholderTextColor={COLORS.textSecondary}
-                value={search}
-                onChangeText={setSearch}
-              />
+          <View style={[styles.headerWrap, styles.searchRowTop, isDesktop && styles.blockDesktop]}>
+            {/* Airbnb-style search pill + filter button */}
+            <View style={styles.searchRowFlex}>
+              <View style={styles.searchPill}>
+                <View style={styles.searchIconCircle}>
+                  <Search size={16} color="#FFFFFF" strokeWidth={2.5} />
+                </View>
+                <TextInput
+                  style={styles.searchPillInput}
+                  placeholder="Start your search"
+                  placeholderTextColor={COLORS.text}
+                  value={search}
+                  onChangeText={setSearch}
+                />
+                {search.length > 0 && (
+                  <TouchableOpacity onPress={() => setSearch('')} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+                    <X size={16} color={COLORS.textSecondary} strokeWidth={2} />
+                  </TouchableOpacity>
+                )}
+              </View>
+              <TouchableOpacity style={styles.filterBtn} onPress={() => setShowFilters(true)} activeOpacity={0.8}>
+                <SlidersHorizontal size={18} color={COLORS.text} strokeWidth={2} />
+                {filtersActive && <View style={styles.filterDot} />}
+              </TouchableOpacity>
             </View>
+
+            {/* Category bar */}
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.catScroll}
+            >
+              {CATEGORIES.map(c => {
+                const Icon = c.icon;
+                const active = selectedType === c.value;
+                return (
+                  <TouchableOpacity
+                    key={c.value}
+                    style={[styles.catChip, active && styles.catChipActive]}
+                    onPress={() => setSelectedType(c.value)}
+                    activeOpacity={0.8}
+                  >
+                    <Icon size={16} color={active ? COLORS.primary : COLORS.textSecondary} strokeWidth={2} />
+                    <Text style={[styles.catChipText, active && styles.catChipTextActive]}>{c.label}</Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </ScrollView>
           </View>
 
           <View style={[styles.resultsSection, isDesktop && styles.resultsSectionDesktop]}>
@@ -140,111 +275,41 @@ export default function ExploreScreen() {
             )}
           </View>
         </ScrollView>
-
-        {/* Bolt-style bottom dock */}
-        <TouchableOpacity style={[styles.dock, isDesktop && styles.dockDesktop]} onPress={() => setShowFilters(true)} activeOpacity={0.9}>
-          <View style={styles.dockHandleRow}>
-            <View style={styles.dockHandle} />
-          </View>
-          <View style={styles.dockRow}>
-            <View style={styles.dockField}>
-              <HomeIcon size={15} color={COLORS.primary} strokeWidth={2} />
-              <Text style={styles.dockFieldLabel} numberOfLines={1}>{typeLabel}</Text>
-            </View>
-            <View style={styles.dockDivider} />
-            <View style={styles.dockField}>
-              <MapPin size={15} color={COLORS.primary} strokeWidth={2} />
-              <Text style={styles.dockFieldLabel} numberOfLines={1}>{selectedNeighbourhood}</Text>
-            </View>
-            <View style={styles.dockDivider} />
-            <View style={styles.dockField}>
-              <Wallet size={15} color={COLORS.primary} strokeWidth={2} />
-              <Text style={styles.dockFieldLabel} numberOfLines={1}>{priceLabel}</Text>
-            </View>
-            <ChevronUp size={18} color={COLORS.textSecondary} strokeWidth={2.5} />
-          </View>
-        </TouchableOpacity>
       </View>
 
-      <Modal
-        visible={showFilters}
-        animationType="slide"
-        transparent
-        statusBarTranslucent
-        onRequestClose={() => setShowFilters(false)}
-      >
-        <Pressable style={[styles.overlay, isDesktop && styles.overlayDesktop]} onPress={() => setShowFilters(false)}>
-          <Pressable style={[styles.sheet, isDesktop && styles.sheetDesktop]} onPress={e => e.stopPropagation()}>
-            {!isDesktop && <View style={styles.sheetHandle} />}
-            <View style={styles.sheetHeader}>
-              <Text style={styles.sheetTitle}>What are you looking for?</Text>
-              <TouchableOpacity style={styles.sheetCloseBtn} onPress={() => setShowFilters(false)}>
-                <X size={18} color={COLORS.textSecondary} strokeWidth={2} />
-              </TouchableOpacity>
-            </View>
-
-            <ScrollView showsVerticalScrollIndicator={false} style={styles.sheetScroll}>
-              <Text style={styles.filterLabelText}>Type</Text>
-              <View style={styles.chipWrap}>
-                {TYPE_OPTIONS.map(t => (
-                  <TouchableOpacity
-                    key={t.value}
-                    style={[styles.chip, selectedType === t.value && styles.chipActive]}
-                    onPress={() => setSelectedType(t.value)}
-                  >
-                    <Text style={[styles.chipText, selectedType === t.value && styles.chipTextActive]}>
-                      {t.label}
-                    </Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
-
-              <Text style={[styles.filterLabelText, styles.filterLabelSpaced]}>Where</Text>
-              <View style={styles.chipWrap}>
-                {NEIGHBOURHOODS.map(n => (
-                  <TouchableOpacity
-                    key={n}
-                    style={[styles.chip, selectedNeighbourhood === n && styles.chipActive]}
-                    onPress={() => setSelectedNeighbourhood(n)}
-                  >
-                    <Text style={[styles.chipText, selectedNeighbourhood === n && styles.chipTextActive]}>
-                      {n}
-                    </Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
-
-              <Text style={[styles.filterLabelText, styles.filterLabelSpaced]}>Budget</Text>
-              <View style={styles.chipWrap}>
-                {PRICE_RANGES.map((pr, i) => (
-                  <TouchableOpacity
-                    key={pr.label}
-                    style={[styles.chip, selectedPriceIndex === i && styles.chipActive]}
-                    onPress={() => setSelectedPriceIndex(i)}
-                  >
-                    <Text style={[styles.chipText, selectedPriceIndex === i && styles.chipTextActive]}>
-                      {pr.label}
-                    </Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
+      {showFilters && (
+        isDesktop ? (
+          <Modal
+            visible={showFilters}
+            animationType="fade"
+            transparent
+            statusBarTranslucent
+            onRequestClose={() => setShowFilters(false)}
+          >
+            <Pressable style={[styles.overlay, styles.overlayDesktop]} onPress={() => setShowFilters(false)}>
+              <Pressable style={[styles.sheet, styles.sheetDesktop]} onPress={e => e.stopPropagation()}>
+                {filterHeader}
+                <ScrollView showsVerticalScrollIndicator={false} style={styles.sheetScroll}>
+                  {filterSections}
+                </ScrollView>
+                {filterFooter}
+              </Pressable>
+            </Pressable>
+          </Modal>
+        ) : (
+          <BottomSheet visible={showFilters} onClose={() => setShowFilters(false)} initialFull>
+            {filterHeader}
+            <ScrollView
+              showsVerticalScrollIndicator={false}
+              style={styles.sheetScrollFlex}
+              contentContainerStyle={styles.sheetScrollContent}
+            >
+              {filterSections}
             </ScrollView>
-
-            <View style={styles.sheetFooter}>
-              <TouchableOpacity onPress={clearFilters} style={styles.sheetClearBtn}>
-                <Text style={styles.sheetClearText}>Clear all</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={styles.sheetApplyBtn}
-                onPress={() => setShowFilters(false)}
-                activeOpacity={0.85}
-              >
-                <Text style={styles.sheetApplyText}>Show {filtered.length} properties</Text>
-              </TouchableOpacity>
-            </View>
-          </Pressable>
-        </Pressable>
-      </Modal>
+            {filterFooter}
+          </BottomSheet>
+        )
+      )}
     </SafeAreaView>
   );
 }
@@ -282,6 +347,111 @@ const styles = StyleSheet.create({
   searchRow: {
     paddingHorizontal: 20,
     paddingVertical: 12,
+  },
+  searchRowTop: {
+    paddingTop: Platform.OS === 'android' ? 48 : 16,
+  },
+  headerWrap: {
+    backgroundColor: COLORS.surface,
+    paddingHorizontal: 20,
+    paddingBottom: 2,
+    borderBottomWidth: 1,
+    borderBottomColor: COLORS.border,
+  },
+  searchRowFlex: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  searchPill: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    backgroundColor: COLORS.surface,
+    borderRadius: 30,
+    borderWidth: 1,
+    borderColor: '#EBEBEB',
+    paddingLeft: 8,
+    paddingRight: 18,
+    paddingVertical: 7,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.12,
+    shadowRadius: 10,
+    elevation: 4,
+  },
+  searchIconCircle: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    backgroundColor: COLORS.primary,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  searchPillInput: {
+    flex: 1,
+    minWidth: 0,
+    fontSize: 15,
+    fontWeight: '700',
+    color: COLORS.text,
+    paddingVertical: 4,
+  },
+  filterBtn: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    borderWidth: 1,
+    borderColor: '#DDDDDD',
+    backgroundColor: COLORS.surface,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  filterDot: {
+    position: 'absolute',
+    top: 9,
+    right: 9,
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: COLORS.primary,
+    borderWidth: 1.5,
+    borderColor: COLORS.surface,
+  },
+  catScroll: {
+    gap: 10,
+    paddingTop: 14,
+    paddingBottom: 12,
+    paddingRight: 8,
+  },
+  catChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 7,
+    paddingHorizontal: 14,
+    paddingVertical: 9,
+    borderRadius: 22,
+    backgroundColor: COLORS.surface,
+    borderWidth: 1,
+    borderColor: '#EBEBEB',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.08,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  catChipActive: {
+    borderColor: COLORS.text,
+    borderWidth: 1.5,
+  },
+  catChipText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: COLORS.textSecondary,
+  },
+  catChipTextActive: {
+    color: COLORS.text,
+    fontWeight: '700',
   },
   searchBar: {
     flexDirection: 'row',
@@ -349,6 +519,14 @@ const styles = StyleSheet.create({
   },
   gridItem: {
     width: '31.5%',
+  },
+  gridMobile: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'space-between',
+  },
+  gridItemMobile: {
+    width: '48%',
   },
   blockDesktop: {
     width: '100%',
@@ -465,6 +643,25 @@ const styles = StyleSheet.create({
   filterLabelSpaced: {
     marginTop: 20,
   },
+  whereInputWrap: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: COLORS.bg,
+    borderRadius: 14,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    gap: 10,
+    marginBottom: 12,
+  },
+  whereInput: {
+    flex: 1,
+    minWidth: 0,
+    fontSize: 14,
+    color: COLORS.text,
+    paddingVertical: 0,
+  },
   chipWrap: {
     flexDirection: 'row',
     flexWrap: 'wrap',
@@ -477,6 +674,18 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: COLORS.border,
     backgroundColor: COLORS.surface,
+  },
+  chipIcon: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingLeft: 12,
+  },
+  sheetScrollFlex: {
+    flex: 1,
+  },
+  sheetScrollContent: {
+    paddingBottom: 8,
   },
   chipActive: {
     backgroundColor: COLORS.primary,

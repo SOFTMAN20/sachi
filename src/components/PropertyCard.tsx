@@ -34,9 +34,11 @@ interface Props {
   horizontal?: boolean;
   /** When true and the card has a video, it autoplays (Instagram-feed style). */
   active?: boolean;
+  /** Show the bed/bath/furnishing amenities row. Hidden on Explore for now. */
+  showAmenities?: boolean;
 }
 
-export default function PropertyCard({ property, horizontal = false, active = false }: Props) {
+export default function PropertyCard({ property, horizontal = false, active = false, showAmenities = true }: Props) {
   const router = useRouter();
   const { savedProperties, toggleSave } = useApp();
   const isSaved = savedProperties.has(property.id);
@@ -45,10 +47,15 @@ export default function PropertyCard({ property, horizontal = false, active = fa
   const horizontalWidth = isDesktop ? 320 : width * 0.68;
   const hasVideo = !!property.videoUrl;
 
+  // Listings with a video open the full-screen reel feed (starting on this
+  // video); the rest go straight to the property detail page.
+  const handlePress = () =>
+    router.push(hasVideo ? `/reels?id=${property.id}` : `/property/${property.id}`);
+
   return (
     <TouchableOpacity
       style={[styles.card, horizontal && styles.cardHorizontal, horizontal && { width: horizontalWidth }]}
-      onPress={() => router.push(`/property/${property.id}`)}
+      onPress={handlePress}
       activeOpacity={0.9}
     >
       {/* Media — autoplaying video when available, else image */}
@@ -122,19 +129,21 @@ export default function PropertyCard({ property, horizontal = false, active = fa
 
         <Text style={styles.subtitle} numberOfLines={1}>{property.title}</Text>
 
-        <View style={styles.detailsRow}>
-          <BedDouble size={13} color={COLORS.textSecondary} strokeWidth={1.8} />
-          <Text style={styles.detailText}>{property.bedrooms} bd</Text>
-          <View style={styles.dot} />
-          <Bath size={13} color={COLORS.textSecondary} strokeWidth={1.8} />
-          <Text style={styles.detailText}>{property.bathrooms} ba</Text>
-          <View style={styles.dot} />
-          <Text style={styles.detailText} numberOfLines={1}>
-            {property.furnishing === 'furnished' ? 'Furnished'
-              : property.furnishing === 'semi_furnished' ? 'Semi-furnished'
-              : 'Unfurnished'}
-          </Text>
-        </View>
+        {showAmenities && (
+          <View style={styles.detailsRow}>
+            <BedDouble size={13} color={COLORS.textSecondary} strokeWidth={1.8} />
+            <Text style={styles.detailText}>{property.bedrooms} bd</Text>
+            <View style={styles.dot} />
+            <Bath size={13} color={COLORS.textSecondary} strokeWidth={1.8} />
+            <Text style={styles.detailText}>{property.bathrooms} ba</Text>
+            <View style={styles.dot} />
+            <Text style={styles.detailText} numberOfLines={1}>
+              {property.furnishing === 'furnished' ? 'Furnished'
+                : property.furnishing === 'semi_furnished' ? 'Semi-furnished'
+                : 'Unfurnished'}
+            </Text>
+          </View>
+        )}
 
         <View style={styles.priceRow}>
           <Text style={styles.price}>{formatRent(property.monthlyRent)}</Text>
@@ -156,7 +165,7 @@ const styles = StyleSheet.create({
   },
   imageWrap: {
     width: '100%',
-    aspectRatio: 1.18,
+    aspectRatio: 0.92,
     borderRadius: 18,
     overflow: 'hidden',
     position: 'relative',

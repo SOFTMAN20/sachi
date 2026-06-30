@@ -8,16 +8,19 @@ interface Props {
   visible: boolean;
   onClose: () => void;
   children: React.ReactNode;
-  /** Height (fraction of screen) the sheet opens to. Drag up to expand, down to dismiss. */
+  /** Mid snap height (fraction of screen). Default 0.6. */
   midRatio?: number;
+  /** Open expanded to (almost) full screen; drag down to the mid snap, again to dismiss. */
+  initialFull?: boolean;
 }
 
 /**
- * Bolt-style draggable bottom sheet. Opens at a mid height; drag the handle up to
- * snap to (almost) full screen or down to dismiss. Animates the sheet HEIGHT (not
- * translateY) so footer content stays pinned to the bottom at every snap point.
+ * Bolt-style draggable bottom sheet with three snap points: full → mid → dismissed.
+ * Opens at the mid height (or full when `initialFull`); drag the handle up to expand,
+ * down to step through mid and off-screen. Animates the sheet HEIGHT (not translateY)
+ * so footer content stays pinned to the bottom at every snap point.
  */
-export default function BottomSheet({ visible, onClose, children, midRatio = 0.6 }: Props) {
+export default function BottomSheet({ visible, onClose, children, midRatio = 0.6, initialFull = false }: Props) {
   const { height: screenH } = useWindowDimensions();
   const insets = useSafeAreaInsets();
 
@@ -40,7 +43,7 @@ export default function BottomSheet({ visible, onClose, children, midRatio = 0.6
   useEffect(() => {
     if (visible) {
       heightV.setValue(0);
-      requestAnimationFrame(() => animateTo(m.current.MID_H));
+      requestAnimationFrame(() => animateTo(initialFull ? m.current.MAX_H : m.current.MID_H));
     }
   }, [visible]);
 
@@ -54,9 +57,18 @@ export default function BottomSheet({ visible, onClose, children, midRatio = 0.6
       onPanResponderRelease: (_, g) => {
         const { MAX_H, MID_H } = m.current;
         const cur = lastH.current - g.dy;
-        if (g.vy > 1.1 || cur < MID_H * 0.55) close();
-        else if (g.vy < -1.1 || cur > (MID_H + MAX_H) / 2) animateTo(MAX_H);
-        else animateTo(MID_H);
+        // Fling down: step to the next lower snap (full → mid → dismiss).
+        if (g.vy > 1.1) {
+          if (lastH.current > MID_H + 4) animateTo(MID_H);
+          else close();
+          return;
+        }
+        // Fling up: expand to full.
+        if (g.vy < -1.1) { animateTo(MAX_H); return; }
+        // Dragged well below the mid snap: dismiss.
+        if (cur < MID_H * 0.5) { close(); return; }
+        // Otherwise settle on whichever snap (mid / full) is nearest.
+        animateTo(Math.abs(cur - MAX_H) < Math.abs(cur - MID_H) ? MAX_H : MID_H);
       },
     })
   ).current;
